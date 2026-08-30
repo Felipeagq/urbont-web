@@ -1,498 +1,273 @@
 "use client";
 
-import { LoginGuard } from "@/components/auth-guard";
 import { useState } from "react";
-  import { motion, AnimatePresence } from "framer-motion";
-  import { Phone, ArrowRight, ChevronLeft, User, Mail, ChevronDown, Car, ParkingSquare } from "lucide-react";
-  import { Button } from "@/components/ui/button";
-  import { Input } from "@/components/ui/input";
-  import { useAuth } from "@/context/auth-context";
-  import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { Phone, ArrowRight, ChevronLeft, ShieldCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useAuth } from "@/context/auth-context";
+import { useRouter } from "next/navigation";
+import { getSupabaseBrowser } from "@/lib/supabase";
 
-  const EASE = [0.22, 1, 0.36, 1] as const;
-  type Step = "role" | "form" | "otp";
-  type Mode = "login" | "register";
-  type UserRole = "passenger" | "valet" | "driver";
+const EASE = [0.22, 1, 0.36, 1] as const;
+type Step = "phone" | "otp";
 
-  const COUNTRY_CODES = [
-    { flag: "🇺🇸", name: "United States", dial: "+1" },
-    { flag: "🇨🇦", name: "Canada", dial: "+1" },
-    { flag: "🇲🇽", name: "Mexico", dial: "+52" },
-    { flag: "🇦🇷", name: "Argentina", dial: "+54" },
-    { flag: "🇧🇷", name: "Brazil", dial: "+55" },
-    { flag: "🇨🇴", name: "Colombia", dial: "+57" },
-    { flag: "🇨🇱", name: "Chile", dial: "+56" },
-    { flag: "🇵🇪", name: "Peru", dial: "+51" },
-    { flag: "🇻🇪", name: "Venezuela", dial: "+58" },
-    { flag: "🇪🇨", name: "Ecuador", dial: "+593" },
-    { flag: "🇬🇹", name: "Guatemala", dial: "+502" },
-    { flag: "🇨🇷", name: "Costa Rica", dial: "+506" },
-    { flag: "🇵🇦", name: "Panama", dial: "+507" },
-    { flag: "🇩🇴", name: "Dominican Republic", dial: "+1809" },
-    { flag: "🇨🇺", name: "Cuba", dial: "+53" },
-    { flag: "🇬🇧", name: "United Kingdom", dial: "+44" },
-    { flag: "🇪🇸", name: "Spain", dial: "+34" },
-    { flag: "🇫🇷", name: "France", dial: "+33" },
-    { flag: "🇩🇪", name: "Germany", dial: "+49" },
-    { flag: "🇮🇹", name: "Italy", dial: "+39" },
-    { flag: "🇵🇹", name: "Portugal", dial: "+351" },
-    { flag: "🇷🇺", name: "Russia", dial: "+7" },
-    { flag: "🇨🇳", name: "China", dial: "+86" },
-    { flag: "🇮🇳", name: "India", dial: "+91" },
-    { flag: "🇯🇵", name: "Japan", dial: "+81" },
-    { flag: "🇰🇷", name: "South Korea", dial: "+82" },
-    { flag: "🇦🇺", name: "Australia", dial: "+61" },
-  ];
+const API = "";
 
-  const ROLE_OPTIONS: { role: UserRole; label: string; sublabel: string; icon: React.ReactNode; accent: string }[] = [
-    {
-      role: "passenger",
-      label: "Passenger",
-      sublabel: "Request rides",
-      icon: <User className="h-6 w-6" />,
-      accent: "from-blue-500/10 to-blue-600/5 border-blue-500/20 hover:border-blue-500/50",
-    },
-    {
-      role: "valet",
-      label: "Valet",
-      sublabel: "Parking & valet services",
-      icon: <ParkingSquare className="h-6 w-6" />,
-      accent: "from-violet-500/10 to-violet-600/5 border-violet-500/20 hover:border-violet-500/50",
-    },
-    {
-      role: "driver",
-      label: "Driver",
-      sublabel: "Drive & earn",
-      icon: <Car className="h-6 w-6" />,
-      accent: "from-emerald-500/10 to-emerald-600/5 border-emerald-500/20 hover:border-emerald-500/50",
-    },
-  ];
+export default function Login() {
+  const [step, setStep]       = useState<Step>("phone");
+  const [phone, setPhone]     = useState("");
+  const [otp, setOtp]         = useState("");
+  // El API de websitev2 valida el OTP sin estado: /api/otp/send devuelve un
+  // token firmado que hay que reenviar en /api/otp/verify. (urbont-api, en
+  // cambio, guarda el código en servidor y no lo necesita.)
+  const [otpToken, setOtpToken] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [error, setError]     = useState("");
+  const { login }             = useAuth();
+  const router = useRouter();
 
-  function Login() {
-    const [mode, setMode] = useState<Mode>("register");
-    const [step, setStep] = useState<Step>("role");
-    const [userRole, setUserRole] = useState<UserRole | null>(null);
+  // ── Phone: request OTP ──────────────────────────────────────────────────────
+  const handleSendOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      // Correct endpoint: /api/otp/send  (NOT /api/auth/send-otp)
+      const res  = await fetch(`${API}/api/otp/send`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ phone }),
+      });
+      const data = await res.json() as { error?: string; otpToken?: string };
+      if (!res.ok) throw new Error(data.error ?? "Error enviando código");
+      if (!data.otpToken) throw new Error("Respuesta de servidor inválida");
+      setOtpToken(data.otpToken);
+      setStep("otp");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error inesperado");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const [firstName, setFirstName] = useState("");
-    const [email, setEmail] = useState("");
-    const [countryCode, setCountryCode] = useState("+1");
-    const [localPhone, setLocalPhone] = useState("");
-    const [smsConsent, setSmsConsent] = useState(false);
+  // ── OTP: verify code ─────────────────────────────────────────────────────────
+  const handleVerifyOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      // Correct endpoint: /api/otp/verify  (NOT /api/auth/verify-otp)
+      const res  = await fetch(`${API}/api/otp/verify`, {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ phone, code: otp, otpToken }),
+      });
+      const data = await res.json() as {
+        error?: string;
+        session?: { access_token: string; user_id: string; phone: string; role: string };
+        profile?: { first_name?: string | null; last_name?: string | null };
+        user_id?: string;
+      };
+      if (!res.ok) throw new Error(data.error ?? "Código inválido");
 
-    const [otp, setOtp] = useState("");
-    const [otpToken, setOtpToken] = useState("");
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState("");
+      // Server returns { session: { access_token, refresh_token, user_id, phone, role }, profile }
+      const session = data.session;
+      if (!session?.access_token) throw new Error("Respuesta de servidor inválida");
 
-    const { login } = useAuth();
-    const router = useRouter();
+      login(session.access_token, {
+        id:    session.user_id,
+        phone: session.phone,
+        name:  data.profile?.first_name
+          ? `${data.profile.first_name} ${data.profile.last_name ?? ""}`.trim()
+          : null,
+        role:  session.role,
+      });
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error inesperado");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    const fullPhone = countryCode + localPhone.trim();
-    const phoneReady = localPhone.trim().length >= 6;
-    const emailValid = email.includes("@") && email.includes(".");
-    const registerReady = firstName.trim().length >= 2 && emailValid && phoneReady;
-    const loginReady = phoneReady;
-    const canContinue = (mode === "register" ? registerReady : loginReady) && smsConsent;
+  // ── Google OAuth ─────────────────────────────────────────────────────────────
+  const handleGoogleLogin = async () => {
+    setError("");
+    setGoogleLoading(true);
+    try {
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const { error: oauthError } = await getSupabaseBrowser().auth.signInWithOAuth({
+        provider: "google",
+        options: { redirectTo },
+      });
+      if (oauthError) throw new Error(oauthError.message);
+      // Browser will be redirected to Google — no further action needed here
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Error iniciando sesión con Google");
+      setGoogleLoading(false);
+    }
+  };
 
-    const switchMode = (m: Mode) => {
-      setMode(m);
-      setError("");
-      setSmsConsent(false);
-      if (m === "register") {
-        setStep("role");
-        setUserRole(null);
-      } else {
-        setStep("form");
-      }
-    };
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
+      <div className="w-full max-w-sm">
+        <motion.div
+          initial={{ opacity: 0, y: -16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, ease: EASE }}
+          className="mb-12 text-center"
+        >
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">Urbont</h1>
+          <p className="mt-2 text-sm text-muted-foreground">Tu ciudad, a tu ritmo</p>
+        </motion.div>
 
-    const handleRoleSelect = (role: UserRole) => {
-      setUserRole(role);
-      if (role === "driver") {
-        router.push("/conductor");
-        return;
-      }
-      if (role === "valet") {
-        router.push("/valet");
-        return;
-      }
-      // passenger → continue with OTP register
-      setStep("form");
-    };
-
-    const handleSendOtp = async (e: React.FormEvent) => {
-      e.preventDefault();
-      if (!canContinue) return;
-      setError("");
-      setLoading(true);
-      try {
-        const apiBase = "";
-        const res = await fetch(`${apiBase}/api/otp/send`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: fullPhone }),
-        });
-        let data: { error?: string; otpToken?: string };
-        try { data = await res.json() as { error?: string; otpToken?: string }; }
-        catch { throw new Error("Server error. Please try again."); }
-        if (!res.ok) throw new Error(data.error ?? "Error sending code");
-        setOtpToken(data.otpToken ?? "");
-        setStep("otp");
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Unexpected error");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    const handleVerifyOtp = async (e: React.FormEvent) => {
-      e.preventDefault();
-      setError("");
-      setLoading(true);
-      try {
-        const apiBase = "";
-        const res = await fetch(`${apiBase}/api/otp/verify`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ phone: fullPhone, code: otp, otpToken }),
-        });
-        let data: { error?: string; session?: { access_token: string; user_id: string; phone?: string; role?: string }; profile?: { first_name?: string } };
-        try { data = await res.json() as typeof data; }
-        catch { throw new Error("Server error. Please try again."); }
-        if (!res.ok) throw new Error(data.error ?? "Invalid code");
-
-        const session = data.session!;
-        login(session.access_token, {
-          id: session.user_id,
-          phone: session.phone ?? fullPhone,
-          name: firstName.trim() || data.profile?.first_name || null,
-          // El original omitía `role`, así que quedaba `undefined` hasta la
-          // siguiente recarga. Como /dashboard enruta según el rol, un conductor
-          // aterrizaba en el panel de pasajero justo después de iniciar sesión.
-          role: session.role ?? "passenger",
-        });
-
-        if (mode === "register" && (firstName.trim() || email.trim())) {
-          fetch(`${""}/api/users/profile`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({ first_name: firstName.trim(), email: email.trim() }),
-          }).catch(() => {});
-        }
-
-        router.push("/");
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Unexpected error");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-6">
-        <div className="w-full max-w-sm">
-          {/* Logo */}
-          <motion.div
-            initial={{ opacity: 0, y: -16 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, ease: EASE }}
-            className="mb-10 text-center"
-          >
-            <img src="/urbont-logo.png" alt="Urbont" className="mx-auto h-20 w-20 rounded-2xl" />
-            <p className="mt-3 text-sm text-muted-foreground">Premium Chauffeur Service · Miami</p>
-          </motion.div>
-
-          {/* Mode toggle — show only on form/role steps (not OTP) */}
-          {step !== "otp" && (
+        {/* Google OAuth button (shown on phone step only) */}
+        <AnimatePresence>
+          {step === "phone" && (
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex bg-muted rounded-xl p-1 mb-8"
+              key="google-btn"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.25, ease: EASE }}
+              className="mb-6"
             >
-              {(["register", "login"] as Mode[]).map((m) => (
-                <button
-                  key={m}
-                  type="button"
-                  onClick={() => switchMode(m)}
-                  className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${
-                    mode === m
-                      ? "bg-background text-foreground shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {m === "register" ? "Create account" : "Log in"}
-                </button>
-              ))}
+              <Button
+                type="button"
+                variant="outline"
+                size="lg"
+                className="w-full h-12 text-base gap-3 font-medium border-gray-200"
+                onClick={handleGoogleLogin}
+                disabled={googleLoading}
+              >
+                {googleLoading ? (
+                  "Redirigiendo…"
+                ) : (
+                  <>
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                    Continuar con Google
+                  </>
+                )}
+              </Button>
+
+              <div className="relative my-5">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border" />
+                </div>
+                <div className="relative flex justify-center">
+                  <span className="bg-background px-3 text-xs text-muted-foreground">o continúa con tu número</span>
+                </div>
+              </div>
             </motion.div>
           )}
+        </AnimatePresence>
 
-          <AnimatePresence mode="wait">
-            {/* ── ROLE SELECTOR (register only) ── */}
-            {step === "role" && mode === "register" ? (
-              <motion.div
-                key="role"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.25, ease: EASE }}
-              >
-                <div className="mb-6">
-                  <h2 className="text-xl font-semibold text-foreground mb-1">How will you use Urbont?</h2>
-                  <p className="text-sm text-muted-foreground">Choose your account type to get started</p>
+        <AnimatePresence mode="wait">
+          {step === "phone" ? (
+            <motion.div
+              key="phone"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, ease: EASE }}
+            >
+              <form onSubmit={handleSendOtp} className="space-y-6">
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground mb-1">Ingresa tu número</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Te enviaremos un código de verificación por SMS
+                  </p>
                 </div>
-                <div className="space-y-3">
-                  {ROLE_OPTIONS.map(({ role, label, sublabel, icon, accent }) => (
-                    <button
-                      key={role}
-                      type="button"
-                      onClick={() => handleRoleSelect(role)}
-                      className={`w-full flex items-center gap-4 p-4 rounded-xl border bg-gradient-to-br ${accent} transition-all duration-200 group text-left`}
-                    >
-                      <div className="shrink-0 h-11 w-11 rounded-xl bg-background/60 flex items-center justify-center text-foreground border border-border/50 group-hover:scale-105 transition-transform">
-                        {icon}
-                      </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-foreground text-sm">{label}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{sublabel}</p>
-                      </div>
-                      <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground group-hover:translate-x-0.5 transition-all" />
-                    </button>
-                  ))}
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    type="tel"
+                    placeholder="+1 (305) 000-0000"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    className="pl-10 h-12 text-base"
+                    required
+                    autoFocus
+                  />
                 </div>
-              </motion.div>
-            ) : step === "form" ? (
-              <motion.div
-                key={`form-${mode}`}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.25, ease: EASE }}
-              >
-                <form onSubmit={handleSendOtp} className="space-y-4">
-                  {mode === "register" && (
-                    <>
-                      <div className="flex items-center gap-2 mb-1">
-                        <button
-                          type="button"
-                          onClick={() => { setStep("role"); setUserRole(null); }}
-                          className="text-muted-foreground hover:text-foreground transition-colors"
-                          aria-label="Back"
-                        >
-                          <ChevronLeft className="h-5 w-5" />
-                        </button>
-                        <div>
-                          <h2 className="text-xl font-semibold text-foreground leading-tight">Create your account</h2>
-                          <p className="text-sm text-muted-foreground">Fill in your details to get started</p>
-                        </div>
-                      </div>
-                      <div className="relative">
-                        <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="text"
-                          placeholder="Your name"
-                          value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
-                          className="pl-10 h-12 text-base"
-                          required
-                          autoFocus
-                        />
-                      </div>
-                      <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          type="email"
-                          placeholder="you@email.com"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          className="pl-10 h-12 text-base"
-                          required
-                        />
-                      </div>
-                    </>
-                  )}
-
-                  {mode === "login" && (
-                    <div>
-                      <h2 className="text-xl font-semibold text-foreground mb-1">Welcome back</h2>
-                      <p className="text-sm text-muted-foreground">
-                        We'll send a verification code to your phone via SMS
-                      </p>
-                    </div>
-                  )}
-
-                  {/* Phone with country code */}
-                  <div className="flex gap-2">
-                    <div className="relative">
-                      <select
-                        value={countryCode}
-                        onChange={(e) => setCountryCode(e.target.value)}
-                        className="h-12 rounded-md border border-input bg-background px-2 pr-7 text-sm focus:outline-none focus:ring-2 focus:ring-ring appearance-none cursor-pointer"
-                        style={{ minWidth: 80 }}
-                      >
-                        {COUNTRY_CODES.map((c) => (
-                          <option key={c.name} value={c.dial}>
-                            {c.flag} {c.dial}
-                          </option>
-                        ))}
-                      </select>
-                      <ChevronDown className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    </div>
-                    <div className="relative flex-1">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        type="tel"
-                        placeholder="305 000 0000"
-                        value={localPhone}
-                        onChange={(e) => setLocalPhone(e.target.value)}
-                        className="pl-10 h-12 text-base w-full"
-                        required
-                        autoFocus={mode === "login"}
-                      />
-                    </div>
-                  </div>
-
-                  {/* SMS Consent */}
-                  <label className="flex items-start gap-3 cursor-pointer select-none py-1">
-                    <div
-                      className="shrink-0 mt-0.5 flex items-center justify-center rounded border-2 transition-colors"
-                      style={{
-                        width: 18,
-                        height: 18,
-                        borderColor: smsConsent ? "hsl(var(--primary))" : "hsl(var(--border))",
-                        backgroundColor: smsConsent ? "hsl(var(--primary))" : "transparent",
-                      }}
-                    >
-                      {smsConsent && (
-                        <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                          <path d="M1 3.5L3.8 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      )}
-                    </div>
-                    <input
-                      type="checkbox"
-                      checked={smsConsent}
-                      onChange={(e) => setSmsConsent(e.target.checked)}
-                      className="sr-only"
-                    />
-                    <span className="text-xs text-muted-foreground leading-relaxed">
-                      I agree to receive SMS verification codes and account notifications from URBONT to the phone number provided. Message and data rates may apply. Reply STOP to cancel.{" "}
-                      <a href="/terms" className="underline hover:text-foreground transition-colors">
-                        Terms
-                      </a>{" "}
-                      &{" "}
-                      <a href="/privacy" className="underline hover:text-foreground transition-colors">
-                        Privacy Policy
-                      </a>.
-                    </span>
-                  </label>
-
-                  {error && (
-                    <motion.p
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-sm text-destructive"
-                    >
-                      {error}
-                    </motion.p>
-                  )}
-
-                  <Button
-                    type="submit"
-                    size="lg"
-                    className="w-full h-12 text-base gap-2"
-                    disabled={loading || !canContinue}
+                {error && (
+                  <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-sm text-destructive">
+                    {error}
+                  </motion.p>
+                )}
+                <Button type="submit" size="lg" className="w-full h-12 text-base gap-2" disabled={loading || phone.length < 8}>
+                  {loading ? "Enviando..." : "Continuar"}
+                  {!loading && <ArrowRight className="h-4 w-4" />}
+                </Button>
+              </form>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="otp"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, ease: EASE }}
+            >
+              <form onSubmit={handleVerifyOtp} className="space-y-6">
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => { setStep("phone"); setError(""); setOtp(""); }}
+                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
                   >
-                    {loading
-                      ? "Sending..."
-                      : mode === "register"
-                      ? "Create account"
-                      : "Continue"}
-                    {!loading && <ArrowRight className="h-4 w-4" />}
-                  </Button>
-                </form>
-              </motion.div>
-            ) : step === "otp" ? (
-              <motion.div
-                key="otp"
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.25, ease: EASE }}
-              >
-                <form onSubmit={handleVerifyOtp} className="space-y-4">
-                  <div className="flex items-center gap-2 mb-1">
-                    <button
-                      type="button"
-                      onClick={() => setStep("form")}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label="Back"
-                    >
-                      <ChevronLeft className="h-5 w-5" />
-                    </button>
-                    <div>
-                      <h2 className="text-xl font-semibold text-foreground leading-tight">Verify your phone</h2>
-                      <p className="text-sm text-muted-foreground">
-                        Enter the 6-digit code sent to{" "}
-                        <span className="font-medium text-foreground">{fullPhone}</span>
-                      </p>
-                    </div>
-                  </div>
-
+                    <ChevronLeft className="h-4 w-4" />
+                    Cambiar número
+                  </button>
+                  <h2 className="text-xl font-semibold text-foreground mb-1">Verifica tu número</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Código enviado a <span className="font-medium text-foreground">{phone}</span>
+                  </p>
+                </div>
+                <div className="relative">
+                  <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     type="text"
                     inputMode="numeric"
+                    pattern="[0-9]{6}"
+                    maxLength={6}
                     placeholder="000000"
                     value={otp}
-                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                    className="h-14 text-center text-2xl tracking-widest font-mono"
-                    maxLength={6}
-                    autoFocus
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                    className="pl-10 h-12 text-base tracking-[0.5em] font-mono"
                     required
+                    autoFocus
                   />
-
-                  {error && (
-                    <motion.p
-                      initial={{ opacity: 0, y: -4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-sm text-destructive"
-                    >
-                      {error}
-                    </motion.p>
-                  )}
-
-                  <Button
-                    type="submit"
-                    size="lg"
-                    className="w-full h-12 text-base gap-2"
-                    disabled={loading || otp.length < 6}
-                  >
-                    {loading ? "Verifying..." : "Verify & continue"}
-                    {!loading && <ArrowRight className="h-4 w-4" />}
-                  </Button>
-
-                  <button
-                    type="button"
-                    className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
-                    onClick={() => { setStep("form"); setOtp(""); setError(""); }}
-                  >
-                    Resend code
-                  </button>
-                </form>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </div>
+                </div>
+                {error && (
+                  <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-sm text-destructive">
+                    {error}
+                  </motion.p>
+                )}
+                <Button type="submit" size="lg" className="w-full h-12 text-base gap-2" disabled={loading || otp.length !== 6}>
+                  {loading ? "Verificando..." : "Iniciar sesión"}
+                  {!loading && <ShieldCheck className="h-4 w-4" />}
+                </Button>
+                <button
+                  type="button"
+                  onClick={handleSendOtp}
+                  disabled={loading}
+                  className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  ¿No recibiste el código? Reenviar
+                </button>
+              </form>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-    );
-  }
-
-export default function Page() {
-  return (
-    <LoginGuard>
-      <Login />
-    </LoginGuard>
+    </div>
   );
 }

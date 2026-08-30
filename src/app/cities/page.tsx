@@ -216,7 +216,7 @@ export default function Cities() {
   const [demands, setDemands] = React.useState<Record<string, number>>(() => loadDemands());
 
   React.useEffect(() => {
-    fetch("/api/demands")
+    fetch(`/api/demands`)
       .then((r) => r.ok ? r.json() : null)
       .then((data: { cities: { city: string; votes: number }[] } | null) => {
         if (!data?.cities) return;
@@ -239,7 +239,7 @@ export default function Cities() {
     if (!demandCity || !demandEmail || demandLoading) return;
     setDemandLoading(true);
     try {
-      const res = await fetch("/api/demands", {
+      const res = await fetch(`/api/demands`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ city: demandCity, email: demandEmail }),
@@ -265,7 +265,7 @@ export default function Cities() {
     if (!email || waitlistLoading) return;
     setWaitlistLoading(true);
     try {
-      await fetch("/api/waitlist", {
+      await fetch(`/api/waitlist`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, city: selectedCity ?? undefined, source: "cities" }),

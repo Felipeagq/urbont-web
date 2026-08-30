@@ -23,6 +23,10 @@ import {
   Star,
   Building2,
   Languages,
+  Car,
+  Smartphone,
+  BadgeCheck,
+  ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,36 +40,6 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRouter } from "next/navigation";
-
-const COUNTRY_CODES = [
-    { flag: "🇺🇸", name: "United States", dial: "+1" },
-    { flag: "🇨🇦", name: "Canada", dial: "+1" },
-    { flag: "🇲🇽", name: "Mexico", dial: "+52" },
-    { flag: "🇦🇷", name: "Argentina", dial: "+54" },
-    { flag: "🇧🇷", name: "Brazil", dial: "+55" },
-    { flag: "🇨🇴", name: "Colombia", dial: "+57" },
-    { flag: "🇨🇱", name: "Chile", dial: "+56" },
-    { flag: "🇵🇪", name: "Peru", dial: "+51" },
-    { flag: "🇻🇪", name: "Venezuela", dial: "+58" },
-    { flag: "🇪🇨", name: "Ecuador", dial: "+593" },
-    { flag: "🇬🇹", name: "Guatemala", dial: "+502" },
-    { flag: "🇨🇷", name: "Costa Rica", dial: "+506" },
-    { flag: "🇵🇦", name: "Panama", dial: "+507" },
-    { flag: "🇩🇴", name: "Dominican Republic", dial: "+1809" },
-    { flag: "🇨🇺", name: "Cuba", dial: "+53" },
-    { flag: "🇬🇧", name: "United Kingdom", dial: "+44" },
-    { flag: "🇪🇸", name: "Spain", dial: "+34" },
-    { flag: "🇫🇷", name: "France", dial: "+33" },
-    { flag: "🇩🇪", name: "Germany", dial: "+49" },
-    { flag: "🇮🇹", name: "Italy", dial: "+39" },
-    { flag: "🇵🇹", name: "Portugal", dial: "+351" },
-    { flag: "🇷🇺", name: "Russia", dial: "+7" },
-    { flag: "🇨🇳", name: "China", dial: "+86" },
-    { flag: "🇮🇳", name: "India", dial: "+91" },
-    { flag: "🇯🇵", name: "Japan", dial: "+81" },
-    { flag: "🇰🇷", name: "South Korea", dial: "+82" },
-    { flag: "🇦🇺", name: "Australia", dial: "+61" },
-  ];
 
 /* ─── Zod schemas per step ─── */
 const step1Schema = z.object({
@@ -94,8 +68,8 @@ const step3Schema = z.object({
 });
 
 const step4Schema = z.object({
-  idUploaded: z.boolean().optional(),
-  photoUploaded: z.boolean().optional(),
+  idUploaded: z.boolean().refine((v) => v === true, "You must upload your ID"),
+  photoUploaded: z.boolean().refine((v) => v === true, "You must upload a profile photo"),
   acceptTerms: z.boolean().refine((v) => v === true, "You must accept the terms and conditions"),
 });
 
@@ -233,6 +207,46 @@ function Field({ label, error, children, required }: { label: string; error?: st
 
 /* ─── Valet intro / landing screen ─── */
 function ValetIntro({ onStart, onBack }: { onStart: () => void; onBack: () => void }) {
+  const [openFaq, setOpenFaq] = React.useState<number | null>(null);
+
+  const howItWorks = [
+    {
+      step: "01",
+      icon: User,
+      color: "bg-blue-100 text-blue-600",
+      title: "Guest requests a ride",
+      desc: "A hotel guest or restaurant patron approaches the front desk or uses the Urbont guest app to request a pickup.",
+    },
+    {
+      step: "02",
+      icon: Smartphone,
+      color: "bg-primary/10 text-primary",
+      title: "You dispatch in seconds",
+      desc: "You open the Urbont Agent app and assign the nearest available Urbont driver to the guest — all in under 30 seconds.",
+    },
+    {
+      step: "03",
+      icon: Car,
+      color: "bg-emerald-100 text-emerald-600",
+      title: "Driver arrives fast",
+      desc: "The driver arrives at the venue entrance in under 5 minutes. The guest gets picked up seamlessly — you get the credit.",
+    },
+  ];
+
+  const perks = [
+    { icon: Building2, title: "Premium venues", desc: "Hotels, restaurants, event centers and corporate buildings across Miami." },
+    { icon: Clock,     title: "Flexible shifts",  desc: "Morning, afternoon or night — you choose the schedule that fits your life." },
+    { icon: BadgeCheck, title: "Full training",   desc: "Urbont trains you on the agent app, dispatch protocol and guest service." },
+    { icon: Star,      title: "Welcome bonus",    desc: "Up to $300 in bonuses during your first 30 days as an active agent." },
+  ];
+
+  const faqs = [
+    { q: "Do I need a car?", a: "No. As a Valet Front Desk agent you work at a fixed venue — no driving required. Your job is coordinating, not transporting." },
+    { q: "Do I need prior experience in hospitality?", a: "No prior experience is required. Urbont provides complete onboarding and training before you start. A friendly attitude and good communication skills are all you need." },
+    { q: "How much can I earn?", a: "Agents earn a base pay per shift plus performance bonuses for every successful dispatch. Exact rates depend on your city and venue." },
+    { q: "What hours does the role involve?", a: "You choose your availability when you apply — morning, afternoon, night or flexible. Urbont matches you with venues that need coverage during those hours." },
+  ];
+
   return (
     <div className="min-h-screen bg-white flex flex-col">
       {/* Header */}
@@ -250,62 +264,191 @@ function ValetIntro({ onStart, onBack }: { onStart: () => void; onBack: () => vo
       </header>
 
       {/* Hero */}
-      <section className="flex-1 bg-gradient-to-br from-gray-950 via-gray-900 to-primary/70 py-24 md:py-36 relative overflow-hidden">
+      <section className="bg-gradient-to-br from-gray-950 via-gray-900 to-primary/70 py-20 md:py-28 relative overflow-hidden">
         <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:24px_24px]" />
         <div className="relative container mx-auto px-4 md:px-6 max-w-3xl text-center">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-white text-sm font-bold mb-8">
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-white text-sm font-bold mb-6">
               <Zap size={14} className="text-amber-400" /> Urbont Valet Front Desk
             </span>
-            <h1 className="text-4xl md:text-6xl font-black text-white mb-6 tracking-tight leading-tight">
+            <h1 className="text-4xl md:text-6xl font-black text-white mb-5 tracking-tight leading-tight">
               The role that connects<br />
               <span className="text-primary">passengers with drivers</span><br />
               in seconds.
             </h1>
-            <p className="text-white/60 text-lg md:text-xl leading-relaxed max-w-xl mx-auto mb-10">
+            <p className="text-white/60 text-lg md:text-xl leading-relaxed max-w-xl mx-auto mb-8">
               You work at hotels, restaurants and events. When a guest needs a ride, you dispatch an Urbont driver immediately — you are the human link between the passenger and the trip.
             </p>
-
-            {/* Quick facts */}
-            <div className="flex flex-wrap justify-center gap-3 mb-10">
-              {[
-                { emoji: "🏨", label: "Hotels & Resorts" },
-                { emoji: "🍽️", label: "Restaurants" },
-                { emoji: "🎪", label: "Events" },
-                { emoji: "✈️", label: "Airport Lounges" },
-              ].map(({ emoji, label }) => (
-                <span key={label} className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/10 border border-white/15 text-white/80 text-sm font-semibold">
-                  {emoji} {label}
-                </span>
-              ))}
-            </div>
-
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={onStart}
                 className="h-14 px-10 text-base font-bold bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg shadow-primary/30"
               >
-                Apply now — it&apos;s free <ArrowRight size={18} className="ml-2" />
+                Apply to become an agent <ArrowRight size={18} className="ml-2" />
               </Button>
-              <button
-                onClick={onBack}
-                className="h-14 px-8 font-bold border border-white/20 text-white bg-white/5 hover:bg-white/10 rounded-xl transition-colors"
-              >
-                Back to home
-              </button>
+              <a href="#how-it-works">
+                <Button variant="outline" className="h-14 px-8 font-bold border-white/20 text-white bg-white/5 hover:bg-white/10 rounded-xl">
+                  How it works
+                </Button>
+              </a>
             </div>
-
-            <p className="text-white/40 text-sm mt-6">Takes less than 5 minutes · We review within 1–2 business days</p>
           </motion.div>
+        </div>
+      </section>
+
+      {/* How it works */}
+      <section id="how-it-works" className="py-20 bg-white">
+        <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }} viewport={{ once: true }}
+            className="text-center mb-14"
+          >
+            <span className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-sm font-bold mb-4">The dispatch process</span>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 tracking-tight">How it works</h2>
+            <p className="text-gray-500 mt-3 max-w-lg mx-auto">Three simple steps from guest request to driver arrival — all orchestrated by you.</p>
+          </motion.div>
+
+          <div className="grid md:grid-cols-3 gap-6 relative">
+            {/* Connector line */}
+            <div className="hidden md:block absolute top-10 left-1/3 right-1/3 h-0.5 bg-gradient-to-r from-blue-200 via-primary/40 to-emerald-200 z-0" />
+
+            {howItWorks.map((item, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: i * 0.15 }} viewport={{ once: true }}
+                className="relative z-10 bg-white rounded-3xl border border-gray-100 p-7 shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-center gap-4 mb-5">
+                  <div className={`w-12 h-12 rounded-2xl ${item.color} flex items-center justify-center shrink-0`}>
+                    <item.icon size={22} />
+                  </div>
+                  <span className="text-4xl font-black text-gray-100 select-none">{item.step}</span>
+                </div>
+                <h3 className="text-lg font-extrabold text-gray-900 mb-2">{item.title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{item.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Perks */}
+      <section className="py-20 bg-gray-50 border-t border-gray-100">
+        <div className="container mx-auto px-4 md:px-6 max-w-5xl">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }} viewport={{ once: true }}
+            className="text-center mb-12"
+          >
+            <h2 className="text-3xl font-extrabold text-gray-900 tracking-tight">Why become a Valet agent?</h2>
+          </motion.div>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            {perks.map((perk, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: i * 0.1 }} viewport={{ once: true }}
+                className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm text-center"
+              >
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                  <perk.icon size={22} className="text-primary" />
+                </div>
+                <h3 className="font-extrabold text-gray-900 mb-2">{perk.title}</h3>
+                <p className="text-gray-500 text-sm leading-relaxed">{perk.desc}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Venues */}
+      <section className="py-16 bg-white border-t border-gray-100">
+        <div className="container mx-auto px-4 md:px-6 max-w-3xl text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }} viewport={{ once: true }}
+          >
+            <h2 className="text-2xl font-extrabold text-gray-900 mb-3">Where you'll work</h2>
+            <p className="text-gray-500 mb-8">Urbont places agents at premium venues across the city.</p>
+            <div className="flex flex-wrap justify-center gap-3">
+              {[
+                { emoji: "🏨", label: "Hotels & Resorts" },
+                { emoji: "🍽️", label: "Restaurants & Bars" },
+                { emoji: "🎪", label: "Event Centers" },
+                { emoji: "🏢", label: "Corporate Buildings" },
+                { emoji: "✈️", label: "Airport Lounges" },
+                { emoji: "🎰", label: "Entertainment Venues" },
+              ].map(({ emoji, label }) => (
+                <span key={label} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-700">
+                  {emoji} {label}
+                </span>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="py-20 bg-gray-50 border-t border-gray-100">
+        <div className="container mx-auto px-4 md:px-6 max-w-2xl">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }} viewport={{ once: true }}
+          >
+            <h2 className="text-2xl font-extrabold text-gray-900 mb-8 text-center">Frequently asked questions</h2>
+            <div className="space-y-3">
+              {faqs.map((faq, i) => (
+                <div key={i} className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-sm">
+                  <button
+                    onClick={() => setOpenFaq(openFaq === i ? null : i)}
+                    className="w-full flex items-center justify-between p-5 text-left"
+                  >
+                    <span className="font-semibold text-gray-900 text-sm pr-4">{faq.q}</span>
+                    <ChevronDown size={18} className={`text-gray-400 shrink-0 transition-transform duration-200 ${openFaq === i ? "rotate-180" : ""}`} />
+                  </button>
+                  <AnimatePresence>
+                    {openFaq === i && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25 }}
+                        className="overflow-hidden"
+                      >
+                        <p className="px-5 pb-5 text-sm text-gray-600 leading-relaxed border-t border-gray-100 pt-3">{faq.a}</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Final CTA */}
+      <section className="py-20 bg-gradient-to-br from-primary via-blue-500 to-blue-400 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:24px_24px]" />
+        <div className="relative text-center px-4">
+          <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4 tracking-tight">Ready to join the team?</h2>
+          <p className="text-white/70 text-lg mb-8 max-w-md mx-auto">The application takes less than 5 minutes. We review your info within 1–2 business days and assign you to a venue.</p>
+          <Button
+            onClick={onStart}
+            className="h-14 px-12 text-base font-bold bg-white text-primary hover:bg-gray-50 rounded-xl shadow-lg"
+          >
+            Apply now — it's free <ArrowRight size={18} className="ml-2" />
+          </Button>
         </div>
       </section>
     </div>
   );
 }
+
 /* ─── Main component ─── */
 export default function ValetSignup() {
   const router = useRouter();
-  const [phonePrefix, setPhonePrefix] = React.useState("+1");
   const [showForm, setShowForm] = React.useState(false);
   const [step, setStep] = React.useState(0);
   const [direction, setDirection] = React.useState(1);
@@ -373,7 +516,7 @@ export default function ValetSignup() {
     const merged = { ...formData, ...data };
     setFormData(merged as typeof formData);
     try {
-      await fetch("/api/applications/valet", {
+      await fetch(`/api/applications/valet`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -390,7 +533,12 @@ export default function ValetSignup() {
           languages:       merged.languages ?? "",
         }),
       });
-    } catch { /* proceed to success even if API fails */ }
+    } catch (err) {
+      const e = err as { message?: string };
+      console.error("[ValetSignup] Application submission error:", e.message);
+      // Still proceed to success screen — application data is preserved in the form
+      // and the team can follow up via email if the API call failed.
+    }
     goNext();
   });
 
@@ -473,13 +621,13 @@ export default function ValetSignup() {
                   {step === 0 && "Become a Valet agent"}
                   {step === 1 && "Tell us about yourself"}
                   {step === 2 && "Your experience & availability"}
-                  {step === 3 && "Almost there"}
+                  {step === 3 && "Last step to activate your account"}
                 </h2>
                 <p className="text-white/70 text-sm leading-relaxed">
                   {step === 0 && "As a Valet Front Desk agent, your job is to get Urbont drivers for passengers immediately at hotels, restaurants and events."}
                   {step === 1 && "We need your personal details to verify your identity and protect your agent account."}
                   {step === 2 && "Your hospitality experience and availability help us place you at the right venue."}
-                  {step === 3 && "Optionally upload your government ID and a profile photo. Only accepting the terms is required to submit."}
+                  {step === 3 && "Upload your documents so we can verify you. The process takes 1–2 business days."}
                 </p>
               </div>
 
@@ -665,40 +813,16 @@ export default function ValetSignup() {
                     </Field>
 
                     <Field label="Phone number" error={form2.formState.errors.phone?.message} required>
-                        <div className="flex gap-2">
-                          <div className="relative">
-                            <select
-                              value={phonePrefix}
-                              onChange={(e) => {
-                                const prev = phonePrefix;
-                                setPhonePrefix(e.target.value);
-                                const cur = form2.getValues("phone");
-                                const local = cur.startsWith(prev) ? cur.slice(prev.length) : cur;
-                                form2.setValue("phone", e.target.value + local, { shouldValidate: true });
-                              }}
-                              className="h-12 rounded-xl border border-gray-200 px-2 pr-6 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary appearance-none cursor-pointer"
-                              style={{ minWidth: 80 }}
-                            >
-                              {COUNTRY_CODES.map((c) => (
-                                <option key={c.name} value={c.dial}>{c.flag} {c.dial}</option>
-                              ))}
-                            </select>
-                            <svg className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
-                          </div>
-                          <div className="flex-1">
-                            <Input
-                              value={form2.watch("phone").startsWith(phonePrefix) ? form2.watch("phone").slice(phonePrefix.length) : form2.watch("phone")}
-                              onChange={(e) => form2.setValue("phone", phonePrefix + e.target.value, { shouldValidate: true })}
-                              type="tel"
-                              placeholder="305 555 0123"
-                              className="h-12 rounded-xl border-gray-200 focus-visible:ring-primary w-full"
-                            />
-                          </div>
-                        </div>
+                      <div className="relative">
+                        <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Input
+                          {...form2.register("phone")}
+                          type="tel"
+                          placeholder="+1 (305) 555-0123"
+                          className="pl-9 h-12 rounded-xl border-gray-200 focus-visible:ring-primary"
+                        />
+                      </div>
                     </Field>
-                    <p className="text-xs text-gray-500 leading-relaxed mt-1 px-0.5">
-                      By providing your number, you consent to receive SMS from Urbont (trip alerts, safety notices). Msg & data rates may apply. Reply <strong>STOP</strong> to opt out. <a href="/privacy" className="text-primary underline underline-offset-2 font-medium">Privacy Policy</a>.
-                    </p>
 
                     <div className="grid grid-cols-2 gap-4">
                       <Field label="Date of birth" error={form2.formState.errors.birthDate?.message} required>
@@ -856,26 +980,26 @@ export default function ValetSignup() {
                 >
                   <div className="mb-8">
                     <span className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-3">Step 4 of 4</span>
-                    <h1 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">Final step</h1>
-                    <p className="text-gray-500">Optionally upload your government ID and a profile photo — only accepting the terms below is required to submit.</p>
+                    <h1 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">Upload your documents</h1>
+                    <p className="text-gray-500">We verify your identity to protect guests and venues. The process takes 1–2 business days.</p>
                   </div>
 
                   <form onSubmit={onStep4} className="space-y-4">
                     <UploadBox
-                      label="Government-issued ID (optional)"
+                      label="Government-issued ID"
                       hint="Driver's license, state ID or passport (current and valid)"
                       icon={FileText}
-                      uploaded={form4.watch("idUploaded") ?? false}
-                      onToggle={() => form4.setValue("idUploaded", !(form4.watch("idUploaded") ?? false), { shouldValidate: true })}
+                      uploaded={form4.watch("idUploaded")}
+                      onToggle={() => form4.setValue("idUploaded", !form4.watch("idUploaded"), { shouldValidate: true })}
                       error={form4.formState.errors.idUploaded?.message}
                     />
 
                     <UploadBox
-                      label="Profile photo (optional)"
+                      label="Profile photo"
                       hint="Recent photo, neutral background, good lighting (JPG or PNG)"
                       icon={User}
-                      uploaded={form4.watch("photoUploaded") ?? false}
-                      onToggle={() => form4.setValue("photoUploaded", !(form4.watch("photoUploaded") ?? false), { shouldValidate: true })}
+                      uploaded={form4.watch("photoUploaded")}
+                      onToggle={() => form4.setValue("photoUploaded", !form4.watch("photoUploaded"), { shouldValidate: true })}
                       error={form4.formState.errors.photoUploaded?.message}
                     />
 
@@ -890,10 +1014,10 @@ export default function ValetSignup() {
                         <div>
                           <Label htmlFor="acceptTerms" className="text-sm font-semibold text-gray-800 cursor-pointer leading-relaxed">
                             I accept the{" "}
-                            <a href="/terms" className="text-primary underline underline-offset-2">Terms of Service</a>
+                            <a href="/terms" className="text-primary underline underline-offset-2">Terms and Conditions</a>
                             {" "}and the{" "}
                             <a href="/privacy" className="text-primary underline underline-offset-2">Privacy Policy</a>
-                            {" "}of Urbont, including consent to receive SMS messages. Msg & data rates may apply. Reply STOP to opt out.
+                            {" "}of Urbont
                           </Label>
                           <p className="text-xs text-gray-500 mt-0.5">As an independent agent, you agree to operate under the Valet Front Desk role guidelines</p>
                         </div>
@@ -936,7 +1060,7 @@ export default function ValetSignup() {
                     <p className="text-sm font-bold text-gray-700 mb-3">What happens next?</p>
                     <div className="space-y-3">
                       {[
-                        "We review your application (1–2 business days)",
+                        "We review your documents (1–2 business days)",
                         "We contact you for a brief virtual onboarding",
                         "We assign you to a venue in your city",
                         "You start receiving dispatch requests",

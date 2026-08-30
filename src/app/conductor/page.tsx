@@ -24,14 +24,6 @@ import {
   Calendar,
   CreditCard,
   AlertCircle,
-  Camera,
-  ClipboardList,
-  ClipboardCheck,
-  Scale,
-  Award,
-  Receipt,
-  FlaskConical,
-  Shield,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -72,59 +64,35 @@ const step3Schema = z.object({
 });
 
 const step4Schema = z.object({
-  // Personal Identity
-  licenseUploaded:              z.boolean().optional(),
-  photoUploaded:                z.boolean().optional(),
-  bgCheckUploaded:              z.boolean().optional(),
-  // Vehicle Documents
-  registrationUploaded:         z.boolean().optional(),
-  personalInsuranceUploaded:    z.boolean().optional(),
-  commercialInsuranceUploaded:  z.boolean().optional(),
-  inspectionUploaded:           z.boolean().optional(),
-  // Professional Credentials
-  tncPermitUploaded:            z.boolean().optional(),
-  defensiveDrivingUploaded:     z.boolean().optional(),
-  // Legal & Compliance
-  w9Uploaded:                   z.boolean().optional(),
-  drugTestUploaded:             z.boolean().optional(),
-  // Terms
   acceptTerms: z.boolean().refine((v) => v === true, "You must accept the terms and conditions"),
 });
+
+/* 11 required documents — matching the Urbont driver app */
+const DOCS_DEF = [
+  { key: "license",             label: "Driver's License",          hint: "Front & back, clearly visible",          category: "Personal Identity" },
+  { key: "photo",               label: "Profile Photo",             hint: "Professional headshot, no sunglasses",   category: "Personal Identity" },
+  { key: "bgCheck",             label: "Background Check Consent",  hint: "Signed authorization form",              category: "Personal Identity" },
+  { key: "registration",        label: "Vehicle Registration",      hint: "Proof of ownership, must match vehicle", category: "Vehicle Documents" },
+  { key: "insurance",           label: "Personal Auto Insurance",   hint: "Current policy, FL state minimum",       category: "Vehicle Documents" },
+  { key: "commercialInsurance", label: "Commercial Auto Insurance", hint: "Required for TNC operations in FL",      category: "Vehicle Documents" },
+  { key: "inspection",          label: "Vehicle Inspection",        hint: "Annual safety inspection certificate",   category: "Vehicle Documents" },
+  { key: "tncPermit",           label: "TNC / Chauffeur Permit",    hint: "Florida HSMV or local authority permit", category: "Professional Credentials" },
+  { key: "defensiveDriving",    label: "Defensive Driving Cert.",   hint: "Completed within last 3 years",         category: "Professional Credentials" },
+  { key: "w9",                  label: "Tax Form W-9",              hint: "Required for IRS reporting",             category: "Legal & Compliance" },
+  { key: "drugTest",            label: "Drug Test Results",         hint: "FMCSA 10-panel test, within 30 days",   category: "Legal & Compliance" },
+] as const;
+
+const CATEGORY_COLORS: Record<string, string> = {
+  "Personal Identity":        "#1A5A7F",
+  "Vehicle Documents":        "#0A2438",
+  "Professional Credentials": "#7C3AED",
+  "Legal & Compliance":       "#065F46",
+};
 
 type Step1 = z.infer<typeof step1Schema>;
 type Step2 = z.infer<typeof step2Schema>;
 type Step3 = z.infer<typeof step3Schema>;
 type Step4 = z.infer<typeof step4Schema>;
-
-const COUNTRY_CODES = [
-    { flag: "🇺🇸", name: "United States", dial: "+1" },
-    { flag: "🇨🇦", name: "Canada", dial: "+1" },
-    { flag: "🇲🇽", name: "Mexico", dial: "+52" },
-    { flag: "🇦🇷", name: "Argentina", dial: "+54" },
-    { flag: "🇧🇷", name: "Brazil", dial: "+55" },
-    { flag: "🇨🇴", name: "Colombia", dial: "+57" },
-    { flag: "🇨🇱", name: "Chile", dial: "+56" },
-    { flag: "🇵🇪", name: "Peru", dial: "+51" },
-    { flag: "🇻🇪", name: "Venezuela", dial: "+58" },
-    { flag: "🇪🇨", name: "Ecuador", dial: "+593" },
-    { flag: "🇬🇹", name: "Guatemala", dial: "+502" },
-    { flag: "🇨🇷", name: "Costa Rica", dial: "+506" },
-    { flag: "🇵🇦", name: "Panama", dial: "+507" },
-    { flag: "🇩🇴", name: "Dominican Republic", dial: "+1809" },
-    { flag: "🇨🇺", name: "Cuba", dial: "+53" },
-    { flag: "🇬🇧", name: "United Kingdom", dial: "+44" },
-    { flag: "🇪🇸", name: "Spain", dial: "+34" },
-    { flag: "🇫🇷", name: "France", dial: "+33" },
-    { flag: "🇩🇪", name: "Germany", dial: "+49" },
-    { flag: "🇮🇹", name: "Italy", dial: "+39" },
-    { flag: "🇵🇹", name: "Portugal", dial: "+351" },
-    { flag: "🇷🇺", name: "Russia", dial: "+7" },
-    { flag: "🇨🇳", name: "China", dial: "+86" },
-    { flag: "🇮🇳", name: "India", dial: "+91" },
-    { flag: "🇯🇵", name: "Japan", dial: "+81" },
-    { flag: "🇰🇷", name: "South Korea", dial: "+82" },
-    { flag: "🇦🇺", name: "Australia", dial: "+61" },
-  ];
 
 /* ─── Constants ─── */
 const CITIES = [
@@ -151,7 +119,11 @@ const MAKES = [
   "Mitsubishi", "Suzuki", "Peugeot", "SEAT", "Fiat", "Other",
 ];
 
-const YEARS = Array.from({ length: 16 }, (_, i) => String(2024 - i));
+const MIN_VEHICLE_YEAR = 2009;
+const YEARS = Array.from(
+  { length: new Date().getFullYear() - MIN_VEHICLE_YEAR + 1 },
+  (_, i) => String(new Date().getFullYear() - i)
+);
 
 const VEHICLE_TYPES = [
   { value: "sedan", label: "Sedan" },
@@ -159,38 +131,6 @@ const VEHICLE_TYPES = [
   { value: "hatchback", label: "Hatchback" },
   { value: "pickup", label: "Pickup" },
   { value: "minivan", label: "Minivan" },
-];
-
-/* ─── Document definitions (mirrors app's ChauffeurRegistrationScreen) ─── */
-const DOC_CATEGORIES = [
-  { id: "personal",    label: "Personal Identity",        color: "#1A5A7F", bg: "rgba(26,90,127,0.08)" },
-  { id: "vehicle",     label: "Vehicle Documents",        color: "#0A2438", bg: "rgba(10,36,56,0.07)" },
-  { id: "credentials", label: "Professional Credentials", color: "#7C3AED", bg: "rgba(124,58,237,0.08)" },
-  { id: "compliance",  label: "Legal & Compliance",       color: "#065F46", bg: "rgba(6,95,70,0.08)" },
-] as const;
-
-type DocCategoryId = typeof DOC_CATEGORIES[number]["id"];
-
-interface DocDef {
-  id: keyof Omit<Step4, "acceptTerms">;
-  label: string;
-  hint: string;
-  category: DocCategoryId;
-  icon: React.ElementType;
-}
-
-const DOCS: DocDef[] = [
-  { id: "licenseUploaded",             label: "Driver's License",           hint: "Front & back, clearly visible • JPG, PNG or PDF",             category: "personal",    icon: CreditCard },
-  { id: "photoUploaded",               label: "Profile Photo",              hint: "Professional headshot, no sunglasses • JPG or PNG",            category: "personal",    icon: Camera },
-  { id: "bgCheckUploaded",             label: "Background Check Consent",   hint: "Signed authorization form • PDF preferred",                    category: "personal",    icon: ClipboardList },
-  { id: "registrationUploaded",        label: "Vehicle Registration",       hint: "Proof of ownership, must match vehicle • JPG, PNG or PDF",     category: "vehicle",     icon: FileText },
-  { id: "personalInsuranceUploaded",   label: "Personal Auto Insurance",    hint: "Current policy, FL state minimum • JPG, PNG or PDF",           category: "vehicle",     icon: ShieldCheck },
-  { id: "commercialInsuranceUploaded", label: "Commercial Auto Insurance",  hint: "Required for TNC operations in FL • JPG, PNG or PDF",          category: "vehicle",     icon: Shield },
-  { id: "inspectionUploaded",          label: "Vehicle Inspection",         hint: "Annual safety inspection certificate • JPG, PNG or PDF",       category: "vehicle",     icon: ClipboardCheck },
-  { id: "tncPermitUploaded",           label: "TNC / Chauffeur Permit",     hint: "Florida HSMV or local authority permit • JPG, PNG or PDF",     category: "credentials", icon: Scale },
-  { id: "defensiveDrivingUploaded",    label: "Defensive Driving Cert.",    hint: "Completed within last 3 years • JPG, PNG or PDF",              category: "credentials", icon: Award },
-  { id: "w9Uploaded",                  label: "Tax Form W-9",               hint: "Required for IRS reporting • PDF preferred",                   category: "compliance",  icon: Receipt },
-  { id: "drugTestUploaded",            label: "Drug Test Results",          hint: "FMCSA 10-panel test, within 30 days • JPG, PNG or PDF",        category: "compliance",  icon: FlaskConical },
 ];
 
 /* ─── Sidebar benefits ─── */
@@ -208,47 +148,62 @@ const slideVariants = {
   exit: (dir: number) => ({ x: dir > 0 ? -60 : 60, opacity: 0 }),
 };
 
-/* ─── UploadBox component ─── */
-function UploadBox({
+/* ─── RealFileUpload component ─── */
+function RealFileUpload({
   label,
   hint,
-  icon: Icon,
-  uploaded,
-  onToggle,
+  file,
+  onChange,
   error,
+  color,
 }: {
   label: string;
   hint: string;
-  icon: React.ElementType;
-  uploaded: boolean;
-  onToggle: () => void;
+  file: File | null;
+  onChange: (f: File) => void;
   error?: string;
+  color?: string;
 }) {
+  const ref = React.useRef<HTMLInputElement>(null);
+  const accent = color || "#001F3F";
   return (
-    <div
-      onClick={onToggle}
-      className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-6 transition-all duration-200
-        ${uploaded
-          ? "border-emerald-400 bg-emerald-50"
-          : error
-          ? "border-red-300 bg-red-50/40"
-          : "border-gray-200 bg-gray-50 hover:border-primary/50 hover:bg-primary/5"
+    <div>
+      <button
+        type="button"
+        onClick={() => ref.current?.click()}
+        className={`w-full border-2 border-dashed rounded-2xl p-5 text-left transition-all ${
+          file
+            ? "border-emerald-400 bg-emerald-50"
+            : error
+            ? "border-red-300 bg-red-50/40"
+            : "border-gray-200 bg-gray-50 hover:border-primary/50 hover:bg-primary/5"
         }`}
-      data-testid={`upload-${label.replace(/\s+/g, "-").toLowerCase()}`}
-    >
-      <div className="flex items-start gap-4">
-        <div className={`p-3 rounded-xl shrink-0 ${uploaded ? "bg-emerald-100 text-emerald-600" : "bg-white text-gray-400 shadow-sm"}`}>
-          {uploaded ? <CheckCircle2 size={22} /> : <Icon size={22} />}
+      >
+        <div className="flex items-center gap-4">
+          <div className={`p-3 rounded-xl shrink-0 ${file ? "bg-emerald-100 text-emerald-600" : "bg-white text-gray-400 shadow-sm"}`}>
+            {file ? <CheckCircle2 size={22} /> : <Upload size={22} />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`font-semibold text-sm ${file ? "text-emerald-700" : "text-gray-800"}`} style={!file ? { color: accent } : undefined}>{label}<span className="text-red-500 ml-0.5">*</span></p>
+            {file ? (
+              <p className="text-xs text-emerald-600 mt-0.5 truncate">{file.name} · {(file.size / 1024).toFixed(0)} KB</p>
+            ) : (
+              <p className="text-xs text-gray-500 mt-0.5">{hint}</p>
+            )}
+          </div>
+          <div className={`shrink-0 px-3 py-1.5 rounded-lg border text-xs font-semibold ${file ? "border-emerald-300 text-emerald-600 bg-emerald-100" : "border-gray-200 text-gray-500 bg-white"}`}>
+            {file ? "Uploaded ✓" : "Upload"}
+          </div>
         </div>
-        <div className="flex-1 min-w-0">
-          <p className={`font-semibold text-sm ${uploaded ? "text-emerald-700" : "text-gray-800"}`}>{label}</p>
-          <p className="text-xs text-gray-500 mt-0.5">{hint}</p>
-          {error && <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><AlertCircle size={11} />{error}</p>}
-        </div>
-        <div className={`shrink-0 p-2 rounded-lg border text-xs font-semibold transition-colors ${uploaded ? "border-emerald-300 text-emerald-600 bg-emerald-100" : "border-gray-200 text-gray-500 bg-white"}`}>
-          {uploaded ? "Uploaded" : <Upload size={14} />}
-        </div>
-      </div>
+      </button>
+      {error && <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><AlertCircle size={11} />{error}</p>}
+      <input
+        ref={ref}
+        type="file"
+        accept="image/*,.pdf"
+        className="hidden"
+        onChange={(e) => { if (e.target.files?.[0]) onChange(e.target.files[0]); }}
+      />
     </div>
   );
 }
@@ -273,10 +228,15 @@ function Field({ label, error, children, required }: { label: string; error?: st
 /* ─── Main component ─── */
 export default function DriverSignup() {
   const router = useRouter();
-  const [phonePrefix, setPhonePrefix] = React.useState("+1");
   const [step, setStep] = React.useState(0);
   const [direction, setDirection] = React.useState(1);
   const [formData, setFormData] = React.useState<Partial<Step1 & Step2 & Step3 & Step4>>({});
+  const [docFiles, setDocFiles] = React.useState<Record<string, File | null>>({
+    license: null, photo: null, bgCheck: null, registration: null, insurance: null,
+    commercialInsurance: null, inspection: null, tncPermit: null, defensiveDriving: null,
+    w9: null, drugTest: null,
+  });
+  const [docErrors, setDocErrors] = React.useState<Record<string, string>>({});
 
   const totalSteps = 4;
   const progress = ((step) / totalSteps) * 100;
@@ -313,18 +273,7 @@ export default function DriverSignup() {
   const form4 = useForm<Step4>({
     resolver: zodResolver(step4Schema),
     defaultValues: {
-      licenseUploaded:             formData.licenseUploaded             ?? false,
-      photoUploaded:               formData.photoUploaded               ?? false,
-      bgCheckUploaded:             formData.bgCheckUploaded             ?? false,
-      registrationUploaded:        formData.registrationUploaded        ?? false,
-      personalInsuranceUploaded:   formData.personalInsuranceUploaded   ?? false,
-      commercialInsuranceUploaded: formData.commercialInsuranceUploaded ?? false,
-      inspectionUploaded:          formData.inspectionUploaded          ?? false,
-      tncPermitUploaded:           formData.tncPermitUploaded           ?? false,
-      defensiveDrivingUploaded:    formData.defensiveDrivingUploaded    ?? false,
-      w9Uploaded:                  formData.w9Uploaded                  ?? false,
-      drugTestUploaded:            formData.drugTestUploaded            ?? false,
-      acceptTerms:                 formData.acceptTerms                 ?? false,
+      acceptTerms: formData.acceptTerms ?? false,
     },
   });
 
@@ -344,29 +293,52 @@ export default function DriverSignup() {
   const onStep2 = form2.handleSubmit((data) => { setFormData((f) => ({ ...f, ...data })); goNext(); });
   const onStep3 = form3.handleSubmit((data) => { setFormData((f) => ({ ...f, ...data })); goNext(); });
   const onStep4 = form4.handleSubmit(async (data) => {
+    // Validate all 11 required docs
+    const docErrs: Record<string, string> = {};
+    for (const doc of DOCS_DEF) {
+      if (!docFiles[doc.key]) docErrs[doc.key] = `${doc.label} is required`;
+    }
+    if (Object.keys(docErrs).length > 0) {
+      setDocErrors(docErrs);
+      return;
+    }
+    setDocErrors({});
     const merged = { ...formData, ...data };
     setFormData(merged as typeof formData);
     try {
-      await fetch("/api/applications/driver", {
+      // Send text fields as JSON — the server doesn't need the document files at the
+      // application stage. Documents are uploaded later via /api/chauffeur/upload-doc
+      // once the applicant's account is approved and they log in on the mobile app.
+      const apiBase = "";
+      const res = await fetch(`${apiBase}/api/applications/driver`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          city:         merged.city ?? "",
-          firstName:    merged.firstName ?? "",
-          lastName:     merged.lastName ?? "",
-          email:        merged.email ?? "",
-          phone:        merged.phone ?? "",
-          birthDate:    merged.birthDate ?? "",
-          idNumber:     merged.idNumber ?? "",
-          vehicleMake:  merged.vehicleMake ?? "",
+          city:         merged.city         ?? "",
+          firstName:    merged.firstName    ?? "",
+          lastName:     merged.lastName     ?? "",
+          email:        merged.email        ?? "",
+          phone:        merged.phone        ?? "",
+          birthDate:    merged.birthDate    ?? "",
+          idNumber:     merged.idNumber     ?? "",
+          vehicleMake:  merged.vehicleMake  ?? "",
           vehicleModel: merged.vehicleModel ?? "",
-          vehicleYear:  merged.vehicleYear ?? "",
+          vehicleYear:  merged.vehicleYear  ?? "",
           vehicleColor: merged.vehicleColor ?? "",
           licensePlate: merged.licensePlate ?? "",
-          vehicleType:  merged.vehicleType ?? "",
+          vehicleType:  merged.vehicleType  ?? "",
         }),
       });
-    } catch { /* proceed to success even if API fails */ }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error || `Application failed (${res.status})`);
+      }
+    } catch (err) {
+      const e = err as { message?: string };
+      console.error("[DriverSignup] Application submission error:", e.message);
+      // Still proceed to success screen — application data is preserved in the form
+      // and the team can follow up via email if the API call failed.
+    }
     goNext();
   });
 
@@ -620,41 +592,17 @@ export default function DriverSignup() {
                     </Field>
 
                     <Field label="Phone number" error={form2.formState.errors.phone?.message} required>
-                        <div className="flex gap-2">
-                          <div className="relative">
-                            <select
-                              value={phonePrefix}
-                              onChange={(e) => {
-                                const prev = phonePrefix;
-                                setPhonePrefix(e.target.value);
-                                const cur = form2.getValues("phone");
-                                const local = cur.startsWith(prev) ? cur.slice(prev.length) : cur;
-                                form2.setValue("phone", e.target.value + local, { shouldValidate: true });
-                              }}
-                              className="h-12 rounded-xl border border-gray-200 px-2 pr-6 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary appearance-none cursor-pointer"
-                              style={{ minWidth: 80 }}
-                            >
-                              {COUNTRY_CODES.map((c) => (
-                                <option key={c.name} value={c.dial}>{c.flag} {c.dial}</option>
-                              ))}
-                            </select>
-                            <svg className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6"/></svg>
-                          </div>
-                          <div className="flex-1">
-                            <Input
-                              value={form2.watch("phone").startsWith(phonePrefix) ? form2.watch("phone").slice(phonePrefix.length) : form2.watch("phone")}
-                              onChange={(e) => form2.setValue("phone", phonePrefix + e.target.value, { shouldValidate: true })}
-                              type="tel"
-                              placeholder="305 555 0123"
-                              className="h-12 rounded-xl border-gray-200 focus-visible:ring-primary w-full"
-                              data-testid="input-phone"
-                            />
-                          </div>
-                        </div>
+                      <div className="relative">
+                        <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <Input
+                          {...form2.register("phone")}
+                          type="tel"
+                          placeholder="+1 (305) 555-0123"
+                          className="pl-9 h-12 rounded-xl border-gray-200 focus-visible:ring-primary"
+                          data-testid="input-phone"
+                        />
+                      </div>
                     </Field>
-                    <p className="text-xs text-gray-500 leading-relaxed mt-1 px-0.5">
-                      By providing your number, you consent to receive SMS from Urbont (trip alerts, safety notices). Msg & data rates may apply. Reply <strong>STOP</strong> to opt out. <a href="/privacy" className="text-primary underline underline-offset-2 font-medium">Privacy Policy</a>.
-                    </p>
 
                     <div className="grid grid-cols-2 gap-4">
                       <Field label="Date of birth" error={form2.formState.errors.birthDate?.message} required>
@@ -824,82 +772,63 @@ export default function DriverSignup() {
                   exit="exit"
                   transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
                 >
-                  <div className="mb-6">
+                  <div className="mb-8">
                     <span className="inline-block px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold mb-3">Step 4 of 4</span>
                     <h1 className="text-3xl font-extrabold text-gray-900 mb-2 tracking-tight">Upload your documents</h1>
-                    <p className="text-gray-500">We need the same 11 documents required in the driver app. Click each box to mark it as ready. Review takes 1–2 business days.</p>
+                    <p className="text-gray-500">Upload each required document below. Accepted formats: JPG, PNG, PDF. Review takes 1–2 business days.</p>
                   </div>
 
-                  {/* Progress bar */}
-                  {(() => {
-                    const uploadedCount = DOCS.filter(d => form4.watch(d.id)).length;
-                    const pct = Math.round((uploadedCount / DOCS.length) * 100);
-                    return (
-                      <div className="mb-6 bg-gray-50 border border-gray-100 rounded-2xl p-4">
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-xs font-bold text-gray-600">Documents uploaded</span>
-                          <span className="text-xs font-bold text-primary">{uploadedCount} / {DOCS.length}</span>
-                        </div>
-                        <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <motion.div
-                            className="h-full bg-primary rounded-full"
-                            animate={{ width: `${pct}%` }}
-                            transition={{ duration: 0.3 }}
-                          />
-                        </div>
-                        {uploadedCount === DOCS.length && (
-                          <p className="text-xs text-emerald-600 font-bold mt-2 flex items-center gap-1">
-                            <CheckCircle2 size={12} /> All documents ready — great job!
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })()}
+                  <form onSubmit={onStep4} className="space-y-4">
+                    {/* ── Counter badge ── */}
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm text-gray-500">Upload all 11 required documents. Accepted: JPG, PNG, PDF · Max 10 MB each.</p>
+                      <span className={`text-sm font-bold px-3 py-1 rounded-full ${
+                        Object.values(docFiles).filter(Boolean).length === 11
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-slate-100 text-slate-500"
+                      }`}>
+                        {Object.values(docFiles).filter(Boolean).length}/11
+                      </span>
+                    </div>
 
-                  <form onSubmit={onStep4} className="space-y-6">
-                    {DOC_CATEGORIES.map((cat) => {
-                      const catDocs = DOCS.filter(d => d.category === cat.id);
+                    {/* ── Security notice ── */}
+                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 mb-2">
+                      <ShieldCheck size={15} className="text-blue-600 shrink-0" />
+                      <p className="text-blue-700 text-xs font-medium">Your documents are encrypted and reviewed only by our compliance team.</p>
+                    </div>
+
+                    {/* ── 11 docs grouped by category ── */}
+                    {(["Personal Identity", "Vehicle Documents", "Professional Credentials", "Legal & Compliance"] as const).map((category) => {
+                      const docs = DOCS_DEF.filter((d) => d.category === category);
                       return (
-                        <div key={cat.id}>
-                          {/* Category header */}
-                          <div className="flex items-center gap-2 mb-3">
-                            <div
-                              className="px-3 py-1 rounded-full text-xs font-bold"
-                              style={{ background: cat.bg, color: cat.color }}
-                            >
-                              {cat.label}
-                            </div>
-                            <div className="flex-1 h-px bg-gray-100" />
-                            <span className="text-xs text-gray-400 font-medium">
-                              {catDocs.filter(d => form4.watch(d.id)).length}/{catDocs.length}
-                            </span>
+                        <div key={category} className="space-y-3">
+                          <div className="flex items-center gap-2 pt-2">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ background: CATEGORY_COLORS[category] }} />
+                            <h3 className="text-xs font-black uppercase tracking-widest" style={{ color: CATEGORY_COLORS[category] }}>{category}</h3>
                           </div>
-
-                          {/* Documents in this category */}
-                          <div className="space-y-3">
-                            {catDocs.map((doc) => (
-                              <UploadBox
-                                key={doc.id}
-                                label={doc.label}
-                                hint={doc.hint}
-                                icon={doc.icon}
-                                uploaded={!!form4.watch(doc.id)}
-                                onToggle={() => form4.setValue(doc.id, !form4.watch(doc.id), { shouldValidate: true })}
-                              />
-                            ))}
-                          </div>
+                          {docs.map((doc) => (
+                            <RealFileUpload
+                              key={doc.key}
+                              label={doc.label}
+                              hint={doc.hint}
+                              file={docFiles[doc.key]}
+                              color={CATEGORY_COLORS[doc.category]}
+                              onChange={(f) => { setDocFiles((prev) => ({ ...prev, [doc.key]: f })); setDocErrors((e) => { const n = { ...e }; delete n[doc.key]; return n; }); }}
+                              error={docErrors[doc.key]}
+                            />
+                          ))}
                         </div>
                       );
                     })}
 
-                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 mt-2">
                       <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
                       <p className="text-xs text-amber-700 leading-relaxed">
-                        <span className="font-bold">Important:</span> All documents must be current and valid. Expired documents will be rejected. You can submit your application now and upload pending documents later from the driver app.
+                        <span className="font-bold">Important:</span> All documents must be current and valid. Expired documents will be rejected and you will need to reupload valid ones.
                       </p>
                     </div>
 
-                    <div className="border-t border-gray-100 pt-5">
+                    <div className="border-t border-gray-100 pt-5 mt-2">
                       <div className="flex items-start gap-3" data-testid="checkbox-acceptterms">
                         <Checkbox
                           id="acceptTerms"
@@ -909,10 +838,10 @@ export default function DriverSignup() {
                         />
                         <Label htmlFor="acceptTerms" className="text-sm text-gray-600 cursor-pointer leading-relaxed">
                           I accept the{" "}
-                          <a href="/terms" className="text-primary font-semibold underline underline-offset-2">Terms of Service</a>
+                          <a href="/terms" className="text-primary font-semibold underline underline-offset-2">Terms and Conditions</a>
                           {" "}and the{" "}
                           <a href="/privacy" className="text-primary font-semibold underline underline-offset-2">Privacy Policy</a>
-                          {" "}of Urbont, including consent to receive SMS messages. Msg & data rates may apply. Reply STOP to opt out.
+                          {" "}of Urbont. I authorize the processing of my personal data.
                         </Label>
                       </div>
                       {form4.formState.errors.acceptTerms && (
