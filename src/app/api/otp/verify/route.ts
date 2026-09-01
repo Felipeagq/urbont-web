@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyOtpToken } from "@/lib/server/otp";
+import { verifyOtpToken, normalizePhone } from "@/lib/server/otp";
 import { findProfileByPhone, createPhoneUser } from "@/lib/server/supabase";
 import { signSessionToken } from "@/lib/server/jwt";
 import { errorResponse } from "@/lib/server/auth";
@@ -28,7 +28,12 @@ export async function POST(req: NextRequest) {
       return errorResponse("Missing phone, code, or otpToken.", 400);
     }
 
-    if (!verifyOtpToken(otpToken, phone.trim(), code.trim())) {
+    const phoneNorm = normalizePhone(phone);
+    if (!phoneNorm) {
+      return errorResponse("Invalid phone.", 400);
+    }
+
+    if (!verifyOtpToken(otpToken, phoneNorm, code.trim())) {
       return errorResponse("Invalid or expired code. Please request a new one.", 401);
     }
 
@@ -36,9 +41,9 @@ export async function POST(req: NextRequest) {
       return errorResponse("Server not fully configured. Contact support@urbont.com", 503);
     }
 
-    let profile = await findProfileByPhone(phone.trim());
+    let profile = await findProfileByPhone(phoneNorm);
     if (!profile) {
-      profile = await createPhoneUser(phone.trim(), {
+      profile = await createPhoneUser(phoneNorm, {
         first_name: firstName?.trim(),
         email: email?.trim(),
       });
@@ -46,7 +51,7 @@ export async function POST(req: NextRequest) {
 
     const sessionToken = signSessionToken({
       user_id: profile.id,
-      phone: profile.phone ?? phone.trim(),
+      phone: profile.phone ?? phoneNorm,
       role: profile.role,
     });
 

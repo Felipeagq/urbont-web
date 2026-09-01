@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateCode, signOtpToken, isValidPhone, isTwilioConfigured, sendSmsTwilio } from "@/lib/server/otp";
+import { generateCode, signOtpToken, isValidPhone, normalizePhone, isTwilioConfigured, sendSmsTwilio } from "@/lib/server/otp";
 import { isDevelopment } from "@/lib/server/env";
 import { errorResponse } from "@/lib/server/auth";
 
@@ -19,11 +19,10 @@ export async function POST(req: NextRequest) {
   try {
     const { phone } = (await req.json()) as { phone?: string };
 
-    if (!phone || !isValidPhone(phone.trim())) {
+    const phoneNorm = phone ? normalizePhone(phone) : "";
+    if (!phoneNorm || !isValidPhone(phoneNorm)) {
       return errorResponse("Invalid phone. Use international format (+13055551234).", 400);
     }
-
-    const phoneNorm = phone.trim();
     const code = generateCode();
     const otpToken = signOtpToken(phoneNorm, code);
 

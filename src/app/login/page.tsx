@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { useAuth } from "@/context/auth-context";
 import { useRouter } from "next/navigation";
 import { getSupabaseBrowser } from "@/lib/supabase";
+import { normalizePhone } from "@/lib/phone";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 type Step = "phone" | "otp";
@@ -34,15 +35,17 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
+      const phoneNorm = normalizePhone(phone);
       // Correct endpoint: /api/otp/send  (NOT /api/auth/send-otp)
       const res  = await fetch(`${API}/api/otp/send`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ phone }),
+        body:    JSON.stringify({ phone: phoneNorm }),
       });
       const data = await res.json() as { error?: string; otpToken?: string };
       if (!res.ok) throw new Error(data.error ?? "Error enviando código");
       if (!data.otpToken) throw new Error("Respuesta de servidor inválida");
+      setPhone(phoneNorm);
       setOtpToken(data.otpToken);
       setStep("otp");
     } catch (err: unknown) {
@@ -58,11 +61,12 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
+      const phoneNorm = normalizePhone(phone);
       // Correct endpoint: /api/otp/verify  (NOT /api/auth/verify-otp)
       const res  = await fetch(`${API}/api/otp/verify`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ phone, code: otp, otpToken }),
+        body:    JSON.stringify({ phone: phoneNorm, code: otp, otpToken }),
       });
       const data = await res.json() as {
         error?: string;

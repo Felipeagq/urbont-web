@@ -30,10 +30,7 @@ export function verifyOtpToken(token: string, phone: string, code: string): bool
   return payload["codeHash"] === hmacHex(`${phone}:${code}`);
 }
 
-/** Formato E.164, el mismo que validaba el original. */
-export function isValidPhone(phone: string): boolean {
-  return /^\+[1-9]\d{6,14}$/.test(phone);
-}
+export { isValidPhone, normalizePhone } from "@/lib/phone";
 
 export function isTwilioConfigured(): boolean {
   return twilioConfig() !== null;
