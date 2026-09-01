@@ -100,7 +100,7 @@ export const structuredData = {
         "@type": "WebPage",
         "@id": "https://urbont.com/#webpage",
         "url": "https://urbont.com",
-        "name": "Urbont — Safe, Affordable Ridesharing in Miami & Florida",
+        "name": "Urbont — Safe, Affordable Limousine Service in Miami & Florida",
         "description": "Fast, safe rides at fair prices in Miami. Drivers keep 85% — the most competitive commission on the market.",
         "isPartOf": {
           "@id": "https://urbont.com/#website"
