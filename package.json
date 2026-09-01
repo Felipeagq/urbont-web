@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit",
-    "test:otp": "node scripts/test-otp.mjs"
+    "test:otp": "node scripts/test-otp.mjs",
+    "twilio:logs": "node scripts/twilio-logs.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
