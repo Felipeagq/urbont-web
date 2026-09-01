@@ -27,6 +27,12 @@ import {
   Smartphone,
   BadgeCheck,
   ChevronDown,
+  Hotel,
+  UtensilsCrossed,
+  Tent,
+  Plane,
+  Dice5,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,13 +110,13 @@ const EXPERIENCE_LEVELS = [
   { value: "advanced", label: "3+ years in hospitality or VIP service" },
 ];
 
-const VENUE_TYPES = [
-  { value: "hotel", label: "Hotel / Resort", icon: "🏨" },
-  { value: "restaurant", label: "Restaurant / Bar", icon: "🍽️" },
-  { value: "events", label: "Event Center", icon: "🎪" },
-  { value: "corporate", label: "Corporate Building", icon: "🏢" },
-  { value: "airport", label: "Airport / Terminal", icon: "✈️" },
-  { value: "any", label: "No preference", icon: "📍" },
+const VENUE_TYPES: { value: string; label: string; icon: LucideIcon }[] = [
+  { value: "hotel", label: "Hotel / Resort", icon: Hotel },
+  { value: "restaurant", label: "Restaurant / Bar", icon: UtensilsCrossed },
+  { value: "events", label: "Event Center", icon: Tent },
+  { value: "corporate", label: "Corporate Building", icon: Building2 },
+  { value: "airport", label: "Airport / Terminal", icon: Plane },
+  { value: "any", label: "No preference", icon: MapPin },
 ];
 
 const SCHEDULES = [
@@ -213,7 +219,7 @@ function ValetIntro({ onStart, onBack }: { onStart: () => void; onBack: () => vo
     {
       step: "01",
       icon: User,
-      color: "bg-blue-100 text-blue-600",
+      color: "bg-primary/10 text-primary",
       title: "Guest requests a ride",
       desc: "A hotel guest or restaurant patron approaches the front desk or uses the Urbont guest app to request a pickup.",
     },
@@ -227,7 +233,7 @@ function ValetIntro({ onStart, onBack }: { onStart: () => void; onBack: () => vo
     {
       step: "03",
       icon: Car,
-      color: "bg-emerald-100 text-emerald-600",
+      color: "bg-primary/10 text-primary",
       title: "Driver arrives fast",
       desc: "The driver arrives at the venue entrance in under 5 minutes. The guest gets picked up seamlessly — you get the credit.",
     },
@@ -264,25 +270,26 @@ function ValetIntro({ onStart, onBack }: { onStart: () => void; onBack: () => vo
       </header>
 
       {/* Hero */}
-      <section className="bg-gradient-to-br from-gray-950 via-gray-900 to-primary/70 py-20 md:py-28 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:24px_24px]" />
+      <section className="bg-primary py-20 md:py-28 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_50%,#fff_1px,transparent_1px),radial-gradient(circle_at_80%_50%,#fff_1px,transparent_1px)] [background-size:40px_40px]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/85" />
         <div className="relative container mx-auto px-4 md:px-6 max-w-3xl text-center">
           <motion.div initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-white text-sm font-bold mb-6">
-              <Zap size={14} className="text-amber-400" /> Urbont Valet Front Desk
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 border border-white/25 text-white text-sm font-bold mb-6">
+              <Zap size={14} className="text-white" /> Urbont Valet Front Desk
             </span>
             <h1 className="text-4xl md:text-6xl font-black text-white mb-5 tracking-tight leading-tight">
               The role that connects<br />
-              <span className="text-primary">passengers with drivers</span><br />
+              <span className="text-white/90">passengers with drivers</span><br />
               in seconds.
             </h1>
-            <p className="text-white/60 text-lg md:text-xl leading-relaxed max-w-xl mx-auto mb-8">
+            <p className="text-white/75 text-lg md:text-xl leading-relaxed max-w-xl mx-auto mb-8">
               You work at hotels, restaurants and events. When a guest needs a ride, you dispatch an Urbont driver immediately — you are the human link between the passenger and the trip.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button
                 onClick={onStart}
-                className="h-14 px-10 text-base font-bold bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg shadow-primary/30"
+                className="h-14 px-10 text-base font-bold bg-white text-primary hover:bg-white/90 rounded-xl shadow-lg"
               >
                 Apply to become an agent <ArrowRight size={18} className="ml-2" />
               </Button>
@@ -311,7 +318,7 @@ function ValetIntro({ onStart, onBack }: { onStart: () => void; onBack: () => vo
 
           <div className="grid md:grid-cols-3 gap-6 relative">
             {/* Connector line */}
-            <div className="hidden md:block absolute top-10 left-1/3 right-1/3 h-0.5 bg-gradient-to-r from-blue-200 via-primary/40 to-emerald-200 z-0" />
+            <div className="hidden md:block absolute top-10 left-1/3 right-1/3 h-0.5 bg-primary/20 z-0" />
 
             {howItWorks.map((item, i) => (
               <motion.div
@@ -373,16 +380,17 @@ function ValetIntro({ onStart, onBack }: { onStart: () => void; onBack: () => vo
             <h2 className="text-2xl font-extrabold text-gray-900 mb-3">Where you'll work</h2>
             <p className="text-gray-500 mb-8">Urbont places agents at premium venues across the city.</p>
             <div className="flex flex-wrap justify-center gap-3">
-              {[
-                { emoji: "🏨", label: "Hotels & Resorts" },
-                { emoji: "🍽️", label: "Restaurants & Bars" },
-                { emoji: "🎪", label: "Event Centers" },
-                { emoji: "🏢", label: "Corporate Buildings" },
-                { emoji: "✈️", label: "Airport Lounges" },
-                { emoji: "🎰", label: "Entertainment Venues" },
-              ].map(({ emoji, label }) => (
+              {([
+                { icon: Hotel, label: "Hotels & Resorts" },
+                { icon: UtensilsCrossed, label: "Restaurants & Bars" },
+                { icon: Tent, label: "Event Centers" },
+                { icon: Building2, label: "Corporate Buildings" },
+                { icon: Plane, label: "Airport Lounges" },
+                { icon: Dice5, label: "Entertainment Venues" },
+              ] as const).map(({ icon: Icon, label }) => (
                 <span key={label} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full bg-gray-50 border border-gray-200 text-sm font-semibold text-gray-700">
-                  {emoji} {label}
+                  <Icon size={16} className="text-primary shrink-0" strokeWidth={1.75} />
+                  {label}
                 </span>
               ))}
             </div>
@@ -429,8 +437,8 @@ function ValetIntro({ onStart, onBack }: { onStart: () => void; onBack: () => vo
       </section>
 
       {/* Final CTA */}
-      <section className="py-20 bg-gradient-to-br from-primary via-blue-500 to-blue-400 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:24px_24px]" />
+      <section className="py-20 bg-primary relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_50%,#fff_1px,transparent_1px),radial-gradient(circle_at_80%_50%,#fff_1px,transparent_1px)] [background-size:24px_24px]" />
         <div className="relative text-center px-4">
           <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4 tracking-tight">Ready to join the team?</h2>
           <p className="text-white/70 text-lg mb-8 max-w-md mx-auto">The application takes less than 5 minutes. We review your info within 1–2 business days and assign you to a venue.</p>
@@ -442,6 +450,15 @@ function ValetIntro({ onStart, onBack }: { onStart: () => void; onBack: () => vo
           </Button>
         </div>
       </section>
+
+      <footer className="bg-primary border-t border-white/10 py-6 text-center">
+        <p className="text-white/70 text-sm">
+          © {new Date().getFullYear()} Urbont Technologies Inc. ·{" "}
+          <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
+          {" · "}
+          <a href="/terms" className="hover:text-white transition-colors">Terms</a>
+        </p>
+      </footer>
     </div>
   );
 }
@@ -609,8 +626,9 @@ export default function ValetSignup() {
       <div className="flex-1 flex">
         {/* Sidebar */}
         {step < totalSteps && (
-          <aside className="hidden lg:flex flex-col w-80 xl:w-96 bg-gradient-to-br from-primary via-blue-500 to-blue-400 p-10 relative overflow-hidden shrink-0">
-            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:20px_20px]" />
+          <aside className="hidden lg:flex flex-col w-80 xl:w-96 bg-primary p-10 relative overflow-hidden shrink-0">
+            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_50%,#fff_1px,transparent_1px),radial-gradient(circle_at_80%_50%,#fff_1px,transparent_1px)] [background-size:40px_40px]" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/85" />
             <div className="relative z-10 flex flex-col h-full">
               <div>
                 <span className="inline-flex items-center gap-1.5 bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full border border-white/30 mb-4">
@@ -895,7 +913,9 @@ export default function ValetSignup() {
                         Preferred venue type <span className="text-red-500">*</span>
                       </Label>
                       <div className="grid grid-cols-2 gap-3">
-                        {VENUE_TYPES.map((vt) => (
+                        {VENUE_TYPES.map((vt) => {
+                          const VenueIcon = vt.icon;
+                          return (
                           <button
                             key={vt.value}
                             type="button"
@@ -906,12 +926,14 @@ export default function ValetSignup() {
                                 : "border-gray-200 hover:border-primary/40 hover:bg-gray-50"
                             }`}
                           >
-                            <span className="text-xl">{vt.icon}</span>
+                            <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${form3.watch("venueType") === vt.value ? "bg-primary/15" : "bg-gray-100"}`}>
+                              <VenueIcon size={18} className={form3.watch("venueType") === vt.value ? "text-primary" : "text-gray-500"} strokeWidth={1.75} />
+                            </div>
                             <span className={`text-sm font-semibold ${form3.watch("venueType") === vt.value ? "text-primary" : "text-gray-700"}`}>
                               {vt.label}
                             </span>
                           </button>
-                        ))}
+                        );})}
                       </div>
                       {form3.formState.errors.venueType && (
                         <p className="text-xs text-red-500 flex items-center gap-1 mt-2"><AlertCircle size={11} />{form3.formState.errors.venueType.message}</p>
@@ -1048,8 +1070,8 @@ export default function ValetSignup() {
                   transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                   className="text-center py-12"
                 >
-                  <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                    <CheckCircle2 size={40} className="text-emerald-500" />
+                  <div className="w-20 h-20 bg-primary rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg shadow-primary/30">
+                    <CheckCircle2 size={40} className="text-white" />
                   </div>
                   <h1 className="text-3xl font-extrabold text-gray-900 mb-3 tracking-tight">Application submitted!</h1>
                   <p className="text-gray-500 text-base leading-relaxed max-w-sm mx-auto mb-8">
@@ -1088,6 +1110,15 @@ export default function ValetSignup() {
           </div>
         </main>
       </div>
+
+      <footer className="bg-primary border-t border-white/10 py-6 text-center">
+        <p className="text-white/70 text-sm">
+          © {new Date().getFullYear()} Urbont Technologies Inc. ·{" "}
+          <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
+          {" · "}
+          <a href="/terms" className="hover:text-white transition-colors">Terms</a>
+        </p>
+      </footer>
     </div>
   );
 }

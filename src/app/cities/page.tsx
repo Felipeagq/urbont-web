@@ -14,6 +14,17 @@ import {
   Mail,
   Building2,
   ChevronLeft,
+  Palmtree,
+  Anchor,
+  Waves,
+  Landmark,
+  Music2,
+  Dice5,
+  Film,
+  Wind,
+  Ticket,
+  Trophy,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,13 +36,13 @@ const ACTIVE_CITY = {
   name: "Miami",
   state: "Florida",
   stateCode: "FL",
-  flag: "🌴",
+  icon: Palmtree,
   status: "active",
   since: "2024",
   stats: [
     { label: "Active drivers", value: "2,400+" },
     { label: "Rides completed", value: "180k+" },
-    { label: "Avg rating", value: "4.9 ★" },
+    { label: "Avg rating", value: "4.9" },
     { label: "Avg ETA", value: "4 min" },
   ],
   areas: [
@@ -51,115 +62,27 @@ const ACTIVE_CITY = {
   desc: "Our home city and operational headquarters. Full coverage across Miami-Dade County with 24/7 service, Valet Front Desk agents at premium venues, and business fleet solutions.",
 };
 
-const COMING_SOON = [
-  {
-    name: "Orlando",
-    state: "Florida",
-    stateCode: "FL",
-    flag: "🎠",
-    eta: "Q3 2025",
-    priority: 1,
-    highlights: ["International Drive", "Lake Nona", "Theme park district"],
-  },
-  {
-    name: "Fort Lauderdale",
-    state: "Florida",
-    stateCode: "FL",
-    flag: "⚓",
-    eta: "Q3 2025",
-    priority: 2,
-    highlights: ["Las Olas Blvd", "Port Everglades", "Beach district"],
-  },
-  {
-    name: "Tampa",
-    state: "Florida",
-    stateCode: "FL",
-    flag: "🌉",
-    eta: "Q4 2025",
-    priority: 3,
-    highlights: ["Ybor City", "Hyde Park", "Tampa Airport"],
-  },
-  {
-    name: "Jacksonville",
-    state: "Florida",
-    stateCode: "FL",
-    flag: "🌊",
-    eta: "Q4 2025",
-    priority: 4,
-    highlights: ["Riverside", "Jacksonville Beach", "St. Johns Town Center"],
-  },
-  {
-    name: "Atlanta",
-    state: "Georgia",
-    stateCode: "GA",
-    flag: "🍑",
-    eta: "Q1 2026",
-    priority: 5,
-    highlights: ["Midtown", "Buckhead", "Hartsfield-Jackson Airport"],
-  },
-  {
-    name: "Houston",
-    state: "Texas",
-    stateCode: "TX",
-    flag: "🤠",
-    eta: "Q1 2026",
-    priority: 6,
-    highlights: ["Downtown", "Montrose", "George Bush Airport"],
-  },
-  {
-    name: "Dallas",
-    state: "Texas",
-    stateCode: "TX",
-    flag: "⭐",
-    eta: "Q2 2026",
-    priority: 7,
-    highlights: ["Deep Ellum", "Uptown", "DFW Airport"],
-  },
-  {
-    name: "Austin",
-    state: "Texas",
-    stateCode: "TX",
-    flag: "🎸",
-    eta: "Q2 2026",
-    priority: 8,
-    highlights: ["Downtown", "South Congress", "Austin-Bergstrom Airport"],
-  },
-  {
-    name: "Las Vegas",
-    state: "Nevada",
-    stateCode: "NV",
-    flag: "🎰",
-    eta: "Q3 2026",
-    priority: 9,
-    highlights: ["The Strip", "Downtown Fremont", "Harry Reid Airport"],
-  },
-  {
-    name: "New York",
-    state: "New York",
-    stateCode: "NY",
-    flag: "🗽",
-    eta: "TBD",
-    priority: 10,
-    highlights: ["Manhattan", "Brooklyn", "Queens"],
-  },
-  {
-    name: "Los Angeles",
-    state: "California",
-    stateCode: "CA",
-    flag: "🎬",
-    eta: "TBD",
-    priority: 11,
-    highlights: ["Hollywood", "Santa Monica", "LAX"],
-  },
-  {
-    name: "Chicago",
-    state: "Illinois",
-    stateCode: "IL",
-    flag: "🌬️",
-    eta: "TBD",
-    priority: 12,
-    highlights: ["The Loop", "River North", "O'Hare Airport"],
-  },
+const COMING_SOON: {
+  name: string;
+  state: string;
+  stateCode: string;
+  icon: LucideIcon;
+  eta: string;
+  priority: number;
+  highlights: string[];
+}[] = [
+  { name: "Orlando", state: "Florida", stateCode: "FL", icon: Ticket, eta: "Q3 2025", priority: 1, highlights: ["International Drive", "Lake Nona", "Theme park district"] },
+  { name: "Fort Lauderdale", state: "Florida", stateCode: "FL", icon: Anchor, eta: "Q3 2025", priority: 2, highlights: ["Las Olas Blvd", "Port Everglades", "Beach district"] },
+  { name: "Tampa", state: "Florida", stateCode: "FL", icon: Landmark, eta: "Q4 2025", priority: 3, highlights: ["Ybor City", "Hyde Park", "Tampa Airport"] },
+  { name: "Jacksonville", state: "Florida", stateCode: "FL", icon: Waves, eta: "Q4 2025", priority: 4, highlights: ["Riverside", "Jacksonville Beach", "St. Johns Town Center"] },
+  { name: "Atlanta", state: "Georgia", stateCode: "GA", icon: Building2, eta: "Q1 2026", priority: 5, highlights: ["Midtown", "Buckhead", "Hartsfield-Jackson Airport"] },
+  { name: "Houston", state: "Texas", stateCode: "TX", icon: Landmark, eta: "Q1 2026", priority: 6, highlights: ["Downtown", "Montrose", "George Bush Airport"] },
+  { name: "Dallas", state: "Texas", stateCode: "TX", icon: Star, eta: "Q2 2026", priority: 7, highlights: ["Deep Ellum", "Uptown", "DFW Airport"] },
+  { name: "Austin", state: "Texas", stateCode: "TX", icon: Music2, eta: "Q2 2026", priority: 8, highlights: ["Downtown", "South Congress", "Austin-Bergstrom Airport"] },
+  { name: "Las Vegas", state: "Nevada", stateCode: "NV", icon: Dice5, eta: "Q3 2026", priority: 9, highlights: ["The Strip", "Downtown Fremont", "Harry Reid Airport"] },
+  { name: "New York", state: "New York", stateCode: "NY", icon: Building2, eta: "TBD", priority: 10, highlights: ["Manhattan", "Brooklyn", "Queens"] },
+  { name: "Los Angeles", state: "California", stateCode: "CA", icon: Film, eta: "TBD", priority: 11, highlights: ["Hollywood", "Santa Monica", "LAX"] },
+  { name: "Chicago", state: "Illinois", stateCode: "IL", icon: Wind, eta: "TBD", priority: 12, highlights: ["The Loop", "River North", "O'Hare Airport"] },
 ];
 
 /* ─── Seed demand data ─── */
@@ -292,9 +215,9 @@ export default function Cities() {
       </header>
 
       {/* ── Hero ── */}
-      <section className="relative bg-gradient-to-br from-gray-950 via-gray-900 to-primary/80 overflow-hidden py-20 md:py-28">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(var(--primary-rgb),0.3),transparent)]" />
-        <div className="absolute inset-0 opacity-[0.04] bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:28px_28px]" />
+      <section className="relative bg-primary overflow-hidden py-20 md:py-28">
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_50%,#fff_1px,transparent_1px),radial-gradient(circle_at_80%_50%,#fff_1px,transparent_1px)] [background-size:40px_40px]" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/85" />
 
         <div className="relative container mx-auto px-4 md:px-6 text-center max-w-3xl">
           <motion.div
@@ -302,25 +225,25 @@ export default function Cities() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/10 border border-white/20 text-white text-sm font-bold mb-6">
-              <MapPin size={14} className="text-primary" /> Our cities
+            <span className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/15 border border-white/25 text-white text-sm font-bold mb-6">
+              <MapPin size={14} className="text-white" /> Our cities
             </span>
             <h1 className="text-4xl md:text-6xl font-black text-white mb-5 tracking-tight leading-tight">
               Operating in Miami.<br />
-              <span className="text-primary">Expanding across the US.</span>
+              <span className="text-white/90">Expanding across the US.</span>
             </h1>
-            <p className="text-white/60 text-lg md:text-xl leading-relaxed max-w-xl mx-auto mb-8">
+            <p className="text-white/75 text-lg md:text-xl leading-relaxed max-w-xl mx-auto mb-8">
               We launched in Miami, Florida — and we're just getting started. Urbont is on its way to every major US city.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a href="#coming-soon">
-                <Button className="h-12 px-8 font-bold bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg shadow-primary/30">
+                <Button className="h-12 px-8 font-bold bg-white text-primary hover:bg-white/90 rounded-xl shadow-lg">
                   See upcoming cities <ArrowRight size={16} className="ml-2" />
                 </Button>
               </a>
               <a href="#waitlist">
-                <Button variant="outline" className="h-12 px-8 font-bold border-white/20 text-white bg-white/5 hover:bg-white/10 hover:border-white/40 rounded-xl">
+                <Button variant="outline" className="h-12 px-8 font-bold border-white/30 text-white bg-white/10 hover:bg-white/20 hover:border-white/50 rounded-xl">
                   Join the waitlist
                 </Button>
               </a>
@@ -430,8 +353,8 @@ export default function Cities() {
               {/* Left info */}
               <div className="lg:col-span-2">
                 <div className="flex items-center gap-4 mb-4">
-                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center text-3xl">
-                    {ACTIVE_CITY.flag}
+                  <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
+                    <ACTIVE_CITY.icon size={32} className="text-primary" strokeWidth={1.75} />
                   </div>
                   <div>
                     <h2 className="text-4xl font-black text-gray-900">{ACTIVE_CITY.name}</h2>
@@ -514,7 +437,9 @@ export default function Cities() {
           </motion.div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {COMING_SOON.map((city, i) => (
+            {COMING_SOON.map((city, i) => {
+              const CityIcon = city.icon;
+              return (
               <motion.div
                 key={city.name}
                 initial={{ opacity: 0, y: 20 }}
@@ -530,7 +455,9 @@ export default function Cities() {
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <span className="text-2xl">{city.flag}</span>
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                      <CityIcon size={20} className="text-primary" strokeWidth={1.75} />
+                    </div>
                     <div>
                       <p className="font-extrabold text-gray-900">{city.name}</p>
                       <p className="text-xs text-gray-500">{city.state}</p>
@@ -565,7 +492,7 @@ export default function Cities() {
                   <p className="text-xs text-gray-400 mt-1">Tap to see details</p>
                 )}
               </motion.div>
-            ))}
+            );})}
           </div>
         </div>
       </section>
@@ -652,7 +579,6 @@ export default function Cities() {
                 {topDemandCities.map(([city, count], i) => {
                   const maxCount = topDemandCities[0][1];
                   const pct = Math.round((count / maxCount) * 100);
-                  const medals = ["🥇", "🥈", "🥉"];
                   return (
                     <motion.div
                       key={city}
@@ -662,8 +588,12 @@ export default function Cities() {
                       viewport={{ once: true }}
                       className="flex items-center gap-3"
                     >
-                      <span className="text-lg w-7 shrink-0 text-center">
-                        {medals[i] ?? <span className="text-sm font-bold text-gray-400">{i + 1}</span>}
+                      <span className="w-7 h-7 shrink-0 flex items-center justify-center rounded-full bg-primary/10">
+                        {i < 3 ? (
+                          <Trophy size={14} className="text-primary" />
+                        ) : (
+                          <span className="text-xs font-bold text-primary">{i + 1}</span>
+                        )}
                       </span>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
@@ -691,8 +621,8 @@ export default function Cities() {
       </section>
 
       {/* ── Waitlist ── */}
-      <section id="waitlist" className="py-24 bg-gradient-to-br from-primary via-blue-500 to-blue-400 relative overflow-hidden">
-        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:24px_24px]" />
+      <section id="waitlist" className="py-24 bg-primary relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_50%,#fff_1px,transparent_1px),radial-gradient(circle_at_80%_50%,#fff_1px,transparent_1px)] [background-size:24px_24px]" />
         <div className="relative container mx-auto px-4 md:px-6 max-w-lg text-center">
           <motion.div
             initial={{ opacity: 0, y: 24 }}
@@ -733,7 +663,7 @@ export default function Cities() {
                     className="h-13 pl-10 rounded-xl bg-white border-transparent text-gray-900 placeholder:text-gray-400 focus-visible:ring-white/50"
                   />
                 </div>
-                <Button type="submit" className="h-13 px-7 font-bold bg-gray-900 hover:bg-gray-800 text-white rounded-xl shrink-0">
+                <Button type="submit" className="h-13 px-7 font-bold bg-white text-primary hover:bg-white/90 rounded-xl shrink-0">
                   Join waitlist
                 </Button>
               </form>
@@ -745,12 +675,12 @@ export default function Cities() {
       </section>
 
       {/* ── Footer strip ── */}
-      <footer className="bg-gray-950 py-6 text-center">
-        <p className="text-gray-500 text-sm">
-          © 2024 Urbont Technologies Inc. ·{" "}
-          <a href="/privacy" className="hover:text-gray-300 transition-colors">Privacy</a>
+      <footer className="bg-primary border-t border-white/10 py-6 text-center">
+        <p className="text-white/70 text-sm">
+          © {new Date().getFullYear()} Urbont Technologies Inc. ·{" "}
+          <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
           {" · "}
-          <a href="/terms" className="hover:text-gray-300 transition-colors">Terms</a>
+          <a href="/terms" className="hover:text-white transition-colors">Terms</a>
         </p>
       </footer>
     </div>

@@ -192,7 +192,7 @@ function RealFileUpload({
             )}
           </div>
           <div className={`shrink-0 px-3 py-1.5 rounded-lg border text-xs font-semibold ${file ? "border-emerald-300 text-emerald-600 bg-emerald-100" : "border-gray-200 text-gray-500 bg-white"}`}>
-            {file ? "Uploaded ✓" : "Upload"}
+            {file ? "Uploaded" : "Upload"}
           </div>
         </div>
       </button>
@@ -398,8 +398,9 @@ export default function DriverSignup() {
       {/* ── Body ── */}
       <div className="flex-1 flex">
         {step < totalSteps && (
-          <aside className="hidden lg:flex flex-col w-80 xl:w-96 bg-gradient-to-br from-primary via-blue-500 to-blue-400 p-10 relative overflow-hidden shrink-0">
-            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:20px_20px]" />
+          <aside className="hidden lg:flex flex-col w-80 xl:w-96 bg-primary p-10 relative overflow-hidden shrink-0">
+            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_50%,#fff_1px,transparent_1px),radial-gradient(circle_at_80%_50%,#fff_1px,transparent_1px)] [background-size:40px_40px]" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/85" />
             <div className="relative z-10 flex flex-col h-full">
               <div>
                 <p className="text-white/60 text-sm font-semibold mb-2">Step {step + 1} of {totalSteps}</p>
@@ -792,9 +793,9 @@ export default function DriverSignup() {
                     </div>
 
                     {/* ── Security notice ── */}
-                    <div className="flex items-center gap-2 bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 mb-2">
-                      <ShieldCheck size={15} className="text-blue-600 shrink-0" />
-                      <p className="text-blue-700 text-xs font-medium">Your documents are encrypted and reviewed only by our compliance team.</p>
+                    <div className="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-xl px-4 py-2.5 mb-2">
+                      <ShieldCheck size={15} className="text-primary shrink-0" />
+                      <p className="text-primary text-xs font-medium">Your documents are encrypted and reviewed only by our compliance team.</p>
                     </div>
 
                     {/* ── 11 docs grouped by category ── */}
@@ -881,7 +882,7 @@ export default function DriverSignup() {
                     initial={{ scale: 0, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     transition={{ type: "spring", stiffness: 260, damping: 20, delay: 0.1 }}
-                    className="w-28 h-28 bg-gradient-to-br from-emerald-400 to-teal-500 rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-emerald-300/50"
+                    className="w-28 h-28 bg-primary rounded-full flex items-center justify-center mx-auto mb-8 shadow-2xl shadow-primary/30"
                   >
                     <CheckCircle2 size={56} className="text-white" />
                   </motion.div>
@@ -948,6 +949,15 @@ export default function DriverSignup() {
           </div>
         </main>
       </div>
+
+      <footer className="bg-primary border-t border-white/10 py-6 text-center">
+        <p className="text-white/70 text-sm">
+          © {new Date().getFullYear()} Urbont Technologies Inc. ·{" "}
+          <a href="/privacy" className="hover:text-white transition-colors">Privacy</a>
+          {" · "}
+          <a href="/terms" className="hover:text-white transition-colors">Terms</a>
+        </p>
+      </footer>
     </div>
   );
 }
