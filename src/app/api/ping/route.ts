@@ -1,15 +1,22 @@
 import { NextResponse } from "next/server";
+import { getOtpSendBlocker, hasJwtSecret, hasSupabase, twilioConfig, appEnv } from "@/lib/server/env";
 
 export const dynamic = "force-dynamic";
 
 /** Diagnóstico: confirma que el runtime de servidor responde y qué variables ve. */
 export async function GET() {
+  const otpBlocker = getOtpSendBlocker();
+
   return NextResponse.json({
-    ok: true,
+    ok: otpBlocker === null,
     env: {
-      hasJwt: !!process.env.JWT_SECRET,
-      hasSupabase: !!process.env.SUPABASE_URL && !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-      hasTwilio: !!process.env.TWILIO_ACCOUNT_SID,
+      appEnv: appEnv(),
+      nodeEnv: process.env.NODE_ENV ?? "unknown",
+      hasJwt: hasJwtSecret(),
+      hasSupabase: hasSupabase(),
+      hasTwilio: twilioConfig() !== null,
+      otpReady: otpBlocker === null,
+      otpBlocker,
     },
   });
 }

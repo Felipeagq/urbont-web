@@ -25,8 +25,13 @@ function required(name: string): string {
 /** Secreto de firma de JWT y tokens OTP. Sin valor por defecto, a propósito. */
 export const jwtSecret = () => required("JWT_SECRET");
 
+export const hasJwtSecret = () => !!process.env.JWT_SECRET?.trim();
+
 export const supabaseUrl = () => required("SUPABASE_URL");
 export const supabaseServiceRoleKey = () => required("SUPABASE_SERVICE_ROLE_KEY");
+
+export const hasSupabase = () =>
+  !!process.env.SUPABASE_URL?.trim() && !!process.env.SUPABASE_SERVICE_ROLE_KEY?.trim();
 
 function isPlaceholderTwilio(sid: string, authToken: string): boolean {
   if (/x{4,}/i.test(sid)) return true;
@@ -46,8 +51,28 @@ export function twilioConfig(): { sid: string; authToken: string; from: string }
 }
 
 /**
- * Sólo cuando esto es cierto se permite devolver el código OTP en la respuesta.
- * En el original no había ninguna comprobación: si faltaba cualquier variable de
- * Twilio en producción, el código viajaba en el JSON y el login quedaba abierto.
+ * Entorno lógico de la aplicación, independiente de NODE_ENV de Next.js.
+ * Por defecto: production (comportamiento estricto, SMS real, sin devCode).
+ * En local: APP_ENV=development en .env.local para OTP de prueba sin Twilio.
  */
-export const isDevelopment = () => process.env.NODE_ENV !== "production";
+export type AppEnv = "production" | "development";
+
+const APP_ENV_VALUES: AppEnv[] = ["production", "development"];
+
+export function appEnv(): AppEnv {
+  const raw = process.env.APP_ENV?.trim().toLowerCase();
+  if (!raw) return "production";
+  if (APP_ENV_VALUES.includes(raw as AppEnv)) return raw as AppEnv;
+  console.warn(`[env] APP_ENV inválido "${raw}", usando production`);
+  return "production";
+}
+
+export const isDevelopment = () => appEnv() === "development";
+export const isProduction = () => appEnv() === "production";
+
+/** Razón por la que el OTP no puede enviarse en producción; null si la config básica está lista. */
+export function getOtpSendBlocker(): string | null {
+  if (!hasJwtSecret()) return "JWT_SECRET";
+  if (isProduction() && !twilioConfig()) return "TWILIO";
+  return null;
+}

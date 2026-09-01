@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { generateCode, signOtpToken, isValidPhone, normalizePhone, isTwilioConfigured, sendSmsTwilio } from "@/lib/server/otp";
-import { isDevelopment } from "@/lib/server/env";
+import { isDevelopment, getOtpSendBlocker } from "@/lib/server/env";
 import { errorResponse } from "@/lib/server/auth";
 
 export const dynamic = "force-dynamic";
@@ -10,10 +10,8 @@ export const dynamic = "force-dynamic";
  *
  * CAMBIO DE SEGURIDAD respecto al original: cuando Twilio no está configurado,
  * el original devolvía el código en la respuesta (`devCode`) sin comprobar el
- * entorno. Si en producción faltaba cualquiera de las tres variables de Twilio,
- * bastaba con pedir el código y leerlo del JSON para entrar como cualquier
- * teléfono. Aquí el `devCode` sólo sale fuera de producción; en producción sin
- * Twilio se responde 503.
+ * entorno. Aquí el `devCode` sólo sale con `APP_ENV=development`; con el valor
+ * por defecto (`production`) sin Twilio se responde 503.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -23,6 +21,16 @@ export async function POST(req: NextRequest) {
     if (!phoneNorm || !isValidPhone(phoneNorm)) {
       return errorResponse("Invalid phone. Use international format (+13055551234).", 400);
     }
+
+    const configBlocker = getOtpSendBlocker();
+    if (configBlocker) {
+      console.error(`[otp/send] Missing production config: ${configBlocker}`);
+      const message = configBlocker === "TWILIO"
+        ? "SMS service is not configured. Contact support@urbont.com"
+        : "Server not fully configured. Contact support@urbont.com";
+      return errorResponse(message, 503);
+    }
+
     const code = generateCode();
     const otpToken = signOtpToken(phoneNorm, code);
 
