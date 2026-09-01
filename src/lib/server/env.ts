@@ -76,3 +76,10 @@ export function getOtpSendBlocker(): string | null {
   if (isProduction() && !twilioConfig()) return "TWILIO";
   return null;
 }
+
+/** Razón por la que verify no puede completarse; null si la config está lista. */
+export function getOtpVerifyBlocker(): string | null {
+  if (!hasJwtSecret()) return "JWT_SECRET";
+  if (!hasSupabase()) return "SUPABASE";
+  return null;
+}

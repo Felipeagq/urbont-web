@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       const message = configBlocker === "TWILIO"
         ? "SMS service is not configured. Contact support@urbont.com"
         : "Server not fully configured. Contact support@urbont.com";
-      return errorResponse(message, 503);
+      return errorResponse(message, 503, { missing: configBlocker });
     }
 
     const code = generateCode();

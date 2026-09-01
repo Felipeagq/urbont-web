@@ -15,8 +15,8 @@ export function authenticate(req: NextRequest): SessionPayload | null {
 }
 
 /** Respuesta JSON de error, con el mismo formato `{ error }` que usaba el original. */
-export function errorResponse(message: string, status: number): Response {
-  return Response.json({ error: message }, { status });
+export function errorResponse(message: string, status: number, extra?: Record<string, unknown>): Response {
+  return Response.json({ error: message, ...extra }, { status });
 }
 
 /**

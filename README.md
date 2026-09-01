@@ -118,16 +118,56 @@ distingue cómo se inició sesión:
 1. **Conectar el repositorio** en la consola de Amplify
    (_New app → Host web app_) y elegir la rama.
 
-2. **Build spec**: Amplify detecta `amplify.yml` automáticamente.
+2. **Build spec**: Amplify detecta `amplify.yml` automáticamente. El proyecto usa
+   `output: 'standalone'` en `next.config.ts` y copia `.env.production` al
+   artefacto standalone durante el build.
 
 3. **Variables de entorno** — _App settings → Environment variables_: cargar las
    8 de la tabla de arriba. Sin ellas el build pasa, pero la aplicación falla en
    caliente.
 
+   **Amplify + Next.js SSR:** las variables del panel no llegan solas al runtime.
+   `amplify.yml` las escribe en `.env.production` antes del build y las copia a
+   `.next/standalone/.env.production` después. `next.config.ts` también las
+   declara en `env` para el bundle SSR. Tras añadir o cambiar variables,
+   **redeploy**.
+
 4. **Desplegar.** Amplify ejecuta `npm ci` → `npm run build` y publica `.next`
    en la plataforma de cómputo.
 
 5. **Dominio** (opcional): _App settings → Domain management_.
+
+### Checklist OTP en producción
+
+Tras desplegar, abre `https://<tu-dominio>/api/ping`. Debe verse:
+
+```json
+{
+  "ok": true,
+  "env": {
+    "appEnv": "production",
+    "hasJwt": true,
+    "hasSupabase": true,
+    "hasTwilio": true,
+    "otpReady": true,
+    "verifyReady": true
+  }
+}
+```
+
+| Error en login | `otpBlocker` / causa | Solución |
+| --- | --- | --- |
+| Server not fully configured | `JWT_SECRET` | Variable en el panel pero **no en runtime** → redeploy con `amplify.yml` actualizado |
+| SMS service is not configured | `TWILIO` | Añadir las 3 variables de Twilio con credenciales reales |
+| Server not fully configured (al verificar) | `SUPABASE` | Añadir `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` |
+
+`APP_ENV` **no es obligatoria**: si no existe, el código usa `production` (sin
+`devCode`). No la pongas en Amplify salvo que quieras comportamiento de desarrollo.
+
+**Importante:** en Vercel, marca cada variable para **Production** (no solo Preview).
+Después de guardar, haz **Redeploy** — las variables no aplican a despliegues anteriores.
+
+No uses `APP_ENV=development` en producción.
 
 > No añadir `output: 'export'`. Convertiría el sitio en estático y los 10
 > endpoints de `src/app/api/` dejarían de existir.

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyOtpToken, normalizePhone } from "@/lib/server/otp";
 import { findProfileByPhone, createPhoneUser } from "@/lib/server/supabase";
 import { signSessionToken } from "@/lib/server/jwt";
+import { getOtpVerifyBlocker } from "@/lib/server/env";
 import { errorResponse } from "@/lib/server/auth";
 
 export const dynamic = "force-dynamic";
@@ -37,8 +38,12 @@ export async function POST(req: NextRequest) {
       return errorResponse("Invalid or expired code. Please request a new one.", 401);
     }
 
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      return errorResponse("Server not fully configured. Contact support@urbont.com", 503);
+    const configBlocker = getOtpVerifyBlocker();
+    if (configBlocker) {
+      console.error(`[otp/verify] Missing config: ${configBlocker}`);
+      return errorResponse("Server not fully configured. Contact support@urbont.com", 503, {
+        missing: configBlocker,
+      });
     }
 
     let profile = await findProfileByPhone(phoneNorm);

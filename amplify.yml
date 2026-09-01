@@ -4,12 +4,19 @@ frontend:
     preBuild:
       commands:
         # `npm ci` exige package-lock.json commiteado — builds reproducibles.
-        # El proyecto original no tenía lockfile: cada despliegue resolvía
-        # versiones distintas dentro de los rangos ^.
         - npm ci
     build:
       commands:
+        # Amplify expone las variables del panel en el shell del build, pero
+        # Next.js standalone solo las ve si están en .env.production antes del build.
+        # https://docs.aws.amazon.com/amplify/latest/userguide/ssr-environment-variables.html
+        - env | grep -e JWT_SECRET -e SUPABASE_URL -e SUPABASE_SERVICE_ROLE_KEY -e TWILIO_ACCOUNT_SID -e TWILIO_AUTH_TOKEN -e TWILIO_PHONE_NUMBER -e APP_ENV >> .env.production || true
+        - env | grep -e NEXT_PUBLIC_ >> .env.production || true
         - npm run build
+        # Standalone: copiar env y assets al artefacto que ejecuta Amplify en runtime.
+        - cp .env.production .next/standalone/.env.production
+        - cp -r .next/static .next/standalone/.next/static
+        - cp -r public .next/standalone/public
   artifacts:
     # Next.js SSR en Amplify (WEB_COMPUTE) publica el directorio .next.
     baseDirectory: .next
