@@ -56,8 +56,11 @@ export const metadata: Metadata = {
     images: [{ url: '/opengraph.jpg', alt: 'Urbont ridesharing app' }],
   },
   icons: {
-    icon: { url: '/favicon.svg', type: 'image/svg+xml' },
-    apple: '/favicon.svg',
+    icon: [
+      { url: '/favicon.ico', sizes: '48x48' },
+      { url: '/urbont-logo.png', type: 'image/png', sizes: '512x512' },
+    ],
+    apple: '/urbont-logo.png',
   },
   other: {
     'geo.region': 'US-FL',
@@ -71,7 +74,7 @@ export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#1a56db',
+  themeColor: '#1A5A7F',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
