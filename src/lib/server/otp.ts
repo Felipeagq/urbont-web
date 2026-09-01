@@ -43,14 +43,22 @@ export async function sendSmsTwilio(to: string, body: string): Promise<void> {
   const url = `https://api.twilio.com/2010-04-01/Accounts/${config.sid}/Messages.json`;
   const creds = Buffer.from(`${config.sid}:${config.authToken}`).toString("base64");
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      Authorization: `Basic ${creds}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-    },
-    body: new URLSearchParams({ To: to, From: config.from, Body: body }).toString(),
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Basic ${creds}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ To: to, From: config.from, Body: body }).toString(),
+      signal: AbortSignal.timeout(15_000),
+    });
+  } catch (err) {
+    const cause = (err as Error & { cause?: { code?: string; message?: string } }).cause;
+    const detail = cause?.code ?? cause?.message;
+    throw new Error(detail ? `fetch failed (${detail})` : "fetch failed");
+  }
 
   const data = (await res.json()) as { error_code?: number; message?: string };
   if (!res.ok) throw new Error(`Twilio ${data.error_code ?? res.status}: ${data.message}`);

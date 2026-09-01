@@ -31,6 +31,10 @@ export async function POST(req: NextRequest) {
         await sendSmsTwilio(phoneNorm, `Your URBONT verification code is: ${code}. Valid for 10 minutes.`);
         return NextResponse.json({ success: true, otpToken });
       } catch (err) {
+        if (isDevelopment()) {
+          console.warn("[otp/send] Twilio failed in development, returning devCode:", (err as Error).message);
+          return NextResponse.json({ success: true, otpToken, devCode: code });
+        }
         return errorResponse(`SMS error: ${(err as Error).message}`, 503);
       }
     }

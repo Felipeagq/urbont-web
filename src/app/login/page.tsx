@@ -23,6 +23,7 @@ export default function Login() {
   // token firmado que hay que reenviar en /api/otp/verify. (urbont-api, en
   // cambio, guarda el código en servidor y no lo necesita.)
   const [otpToken, setOtpToken] = useState("");
+  const [devCode, setDevCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError]     = useState("");
@@ -42,11 +43,12 @@ export default function Login() {
         headers: { "Content-Type": "application/json" },
         body:    JSON.stringify({ phone: phoneNorm }),
       });
-      const data = await res.json() as { error?: string; otpToken?: string };
+      const data = await res.json() as { error?: string; otpToken?: string; devCode?: string };
       if (!res.ok) throw new Error(data.error ?? "Error enviando código");
       if (!data.otpToken) throw new Error("Respuesta de servidor inválida");
       setPhone(phoneNorm);
       setOtpToken(data.otpToken);
+      setDevCode(data.devCode ?? "");
       setStep("otp");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error inesperado");
@@ -224,7 +226,7 @@ export default function Login() {
                 <div>
                   <button
                     type="button"
-                    onClick={() => { setStep("phone"); setError(""); setOtp(""); }}
+                    onClick={() => { setStep("phone"); setError(""); setOtp(""); setDevCode(""); }}
                     className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground mb-4 transition-colors"
                   >
                     <ChevronLeft className="h-4 w-4" />
@@ -250,6 +252,11 @@ export default function Login() {
                     autoFocus
                   />
                 </div>
+                {devCode && (
+                  <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-3 py-2">
+                    Modo desarrollo: tu código es <span className="font-mono font-semibold">{devCode}</span>
+                  </p>
+                )}
                 {error && (
                   <motion.p initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="text-sm text-destructive">
                     {error}

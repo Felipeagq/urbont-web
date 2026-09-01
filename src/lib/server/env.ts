@@ -28,12 +28,20 @@ export const jwtSecret = () => required("JWT_SECRET");
 export const supabaseUrl = () => required("SUPABASE_URL");
 export const supabaseServiceRoleKey = () => required("SUPABASE_SERVICE_ROLE_KEY");
 
+function isPlaceholderTwilio(sid: string, authToken: string): boolean {
+  if (/x{4,}/i.test(sid)) return true;
+  if (authToken === "your_auth_token") return true;
+  if (!/^AC[0-9a-fA-F]{32}$/.test(sid)) return true;
+  return false;
+}
+
 /** Twilio es opcional: sin él no se pueden enviar SMS, pero el resto funciona. */
 export function twilioConfig(): { sid: string; authToken: string; from: string } | null {
-  const sid = process.env.TWILIO_ACCOUNT_SID;
-  const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const from = process.env.TWILIO_PHONE_NUMBER;
+  const sid = process.env.TWILIO_ACCOUNT_SID?.trim();
+  const authToken = process.env.TWILIO_AUTH_TOKEN?.trim();
+  const from = process.env.TWILIO_PHONE_NUMBER?.trim();
   if (!sid || !authToken || !from) return null;
+  if (isPlaceholderTwilio(sid, authToken)) return null;
   return { sid, authToken, from };
 }
 
