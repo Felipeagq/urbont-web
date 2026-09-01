@@ -20,6 +20,7 @@ npm run dev                  # http://localhost:3000
 | `npm run build`     | Build de producción                        |
 | `npm start`         | Sirve el build en el 3000 (respeta `PORT`) |
 | `npm run typecheck` | Comprueba tipos sin emitir                 |
+| `npm run test:otp`  | Prueba send + verify contra `localhost:3000` |
 
 ---
 
