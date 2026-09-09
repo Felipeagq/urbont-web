@@ -15,6 +15,7 @@ import { useLanguage, LANGUAGES } from "@/i18n";
 import { useRouter } from "next/navigation";
 import CityMap from "@/components/city-map";
 import CookieConsent from "@/components/cookie-consent";
+import { APP_VERSION } from "@/version";
 
 /* ─── Animated Counter ─────────────────────────────────────── */
 function AnimatedCounter({ to, suffix = "" }: { to: number; suffix?: string }) {
@@ -1693,7 +1694,11 @@ export default function Home() {
             ))}
           </div>
           <div className="pt-8 border-t border-gray-100 flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-gray-400">
-            <p>© {new Date().getFullYear()} Urbont Technologies Inc. {t.footer.copyright}</p>
+            <p>
+              © {new Date().getFullYear()} Urbont Technologies Inc. {t.footer.copyright}
+              <span className="text-gray-300 mx-2">·</span>
+              <span className="text-gray-400">v{APP_VERSION}</span>
+            </p>
             <div className="flex gap-6">
               {t.footer.legal.map((item, i) => (
                 <a
