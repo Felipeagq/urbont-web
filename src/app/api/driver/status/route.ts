@@ -19,11 +19,14 @@ export const GET = withAuth(async (_req: NextRequest, session) => {
       .select("id, first_name, last_name, role, rating, total_rides, avatar_url, vehicle")
       .eq("id", session.user_id)
       .maybeSingle(),
+    // Una fila por documento: sin .maybeSingle(), que reventaría en cuanto el
+    // conductor tuviera más de uno. Las columnas *_url del código anterior no
+    // existen en la tabla.
     supabase
       .from("driver_documents")
-      .select("status, rejection_reason, license_doc_url, vehicle_registration_url, insurance_doc_url, updated_at")
+      .select("doc_key, storage_url, image_url, status, rejection_reason, updated_at")
       .eq("driver_id", session.user_id)
-      .maybeSingle(),
+      .order("updated_at", { ascending: false }),
     supabase
       .from("rides")
       .select("id, ride_status, fare, created_at, pickup_address, dropoff_address")
@@ -40,7 +43,7 @@ export const GET = withAuth(async (_req: NextRequest, session) => {
 
   return Response.json({
     profile,
-    documents,
+    documents: documents ?? [],
     recent_rides: rides ?? [],
     stats: {
       total_rides: p?.total_rides ?? 0,

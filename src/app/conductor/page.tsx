@@ -14,7 +14,6 @@ import {
   FileText,
   MapPin,
   Upload,
-  Star,
   Banknote,
   Clock,
   ShieldCheck,
@@ -37,6 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRouter } from "next/navigation";
+import { DOCS_DEF, DOC_CATEGORIES } from "@/lib/driver-documents";
 
 /* ─── Zod schemas per step ─── */
 const step1Schema = z.object({
@@ -66,21 +66,6 @@ const step3Schema = z.object({
 const step4Schema = z.object({
   acceptTerms: z.boolean().refine((v) => v === true, "You must accept the terms and conditions"),
 });
-
-/* 11 required documents — matching the Urbont driver app */
-const DOCS_DEF = [
-  { key: "license",             label: "Driver's License",          hint: "Front & back, clearly visible",          category: "Personal Identity" },
-  { key: "photo",               label: "Profile Photo",             hint: "Professional headshot, no sunglasses",   category: "Personal Identity" },
-  { key: "bgCheck",             label: "Background Check Consent",  hint: "Signed authorization form",              category: "Personal Identity" },
-  { key: "registration",        label: "Vehicle Registration",      hint: "Proof of ownership, must match vehicle", category: "Vehicle Documents" },
-  { key: "insurance",           label: "Personal Auto Insurance",   hint: "Current policy, FL state minimum",       category: "Vehicle Documents" },
-  { key: "commercialInsurance", label: "Commercial Auto Insurance", hint: "Required for TNC operations in FL",      category: "Vehicle Documents" },
-  { key: "inspection",          label: "Vehicle Inspection",        hint: "Annual safety inspection certificate",   category: "Vehicle Documents" },
-  { key: "tncPermit",           label: "TNC / Chauffeur Permit",    hint: "Florida HSMV or local authority permit", category: "Professional Credentials" },
-  { key: "defensiveDriving",    label: "Defensive Driving Cert.",   hint: "Completed within last 3 years",         category: "Professional Credentials" },
-  { key: "w9",                  label: "Tax Form W-9",              hint: "Required for IRS reporting",             category: "Legal & Compliance" },
-  { key: "drugTest",            label: "Drug Test Results",         hint: "FMCSA 10-panel test, within 30 days",   category: "Legal & Compliance" },
-] as const;
 
 const CATEGORY_COLORS: Record<string, string> = {
   "Personal Identity":        "#1A5A7F",
@@ -138,8 +123,63 @@ const sidebarItems = [
   { icon: Banknote, title: "Earn at your pace", desc: "The lowest commission in the market: only 15%" },
   { icon: Clock, title: "Flexible hours", desc: "You decide when and how much to drive" },
   { icon: ShieldCheck, title: "Insurance included", desc: "Accident coverage on every trip" },
-  { icon: Star, title: "Welcome bonus", desc: "Up to $500 in bonuses for your first 50 trips" },
 ];
+
+/**
+ * Sube cada documento en dos pasos: el servidor firma una URL de subida (y crea
+ * o actualiza su fila en driver_documents), y el archivo viaja directo a
+ * Supabase Storage sin pasar por el servidor de Next.
+ *
+ * Devuelve las etiquetas de los que fallaron: un archivo suelto no debe tumbar
+ * la solicitud entera, que a esas alturas ya está guardada.
+ */
+async function uploadAllDocuments(
+  uploadToken: string,
+  files: Record<string, File | null>,
+  onProgress: (n: number) => void,
+): Promise<string[]> {
+  const failed: string[] = [];
+  let done = 0;
+
+  for (const doc of DOCS_DEF) {
+    const file = files[doc.key];
+    if (!file) {
+      failed.push(doc.label);
+      continue;
+    }
+    try {
+      const res = await fetch("/api/driver/documents", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${uploadToken}`,
+        },
+        body: JSON.stringify({
+          doc_key: doc.key,
+          filename: file.name,
+          content_type: file.type || "application/octet-stream",
+        }),
+      });
+      if (!res.ok) throw new Error(`sign failed (${res.status})`);
+      const { upload_url } = (await res.json()) as { upload_url: string };
+
+      const put = await fetch(upload_url, {
+        method: "PUT",
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+        body: file,
+      });
+      if (!put.ok) throw new Error(`upload failed (${put.status})`);
+
+      done += 1;
+      onProgress(done);
+    } catch (err) {
+      console.error(`[DriverSignup] ${doc.key}:`, (err as Error).message);
+      failed.push(doc.label);
+    }
+  }
+
+  return failed;
+}
 
 /* ─── Slide animation ─── */
 const slideVariants = {
@@ -231,12 +271,16 @@ export default function DriverSignup() {
   const [step, setStep] = React.useState(0);
   const [direction, setDirection] = React.useState(1);
   const [formData, setFormData] = React.useState<Partial<Step1 & Step2 & Step3 & Step4>>({});
-  const [docFiles, setDocFiles] = React.useState<Record<string, File | null>>({
-    license: null, photo: null, bgCheck: null, registration: null, insurance: null,
-    commercialInsurance: null, inspection: null, tncPermit: null, defensiveDriving: null,
-    w9: null, drugTest: null,
-  });
+  // Derivado de DOCS_DEF: añadir o quitar un documento allí basta, y el contador
+  // `length === DOCS_DEF.length` sigue siendo correcto porque no hay claves de más.
+  const [docFiles, setDocFiles] = React.useState<Record<string, File | null>>(() =>
+    Object.fromEntries(DOCS_DEF.map((d) => [d.key, null])),
+  );
   const [docErrors, setDocErrors] = React.useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = React.useState(false);
+  const [uploadedCount, setUploadedCount] = React.useState(0);
+  /** Aviso que se muestra en la pantalla final si algo no salió del todo bien. */
+  const [submitNote, setSubmitNote] = React.useState<string | null>(null);
 
   const totalSteps = 4;
   const progress = ((step) / totalSteps) * 100;
@@ -293,7 +337,7 @@ export default function DriverSignup() {
   const onStep2 = form2.handleSubmit((data) => { setFormData((f) => ({ ...f, ...data })); goNext(); });
   const onStep3 = form3.handleSubmit((data) => { setFormData((f) => ({ ...f, ...data })); goNext(); });
   const onStep4 = form4.handleSubmit(async (data) => {
-    // Validate all 11 required docs
+    // Validate every required doc
     const docErrs: Record<string, string> = {};
     for (const doc of DOCS_DEF) {
       if (!docFiles[doc.key]) docErrs[doc.key] = `${doc.label} is required`;
@@ -305,12 +349,13 @@ export default function DriverSignup() {
     setDocErrors({});
     const merged = { ...formData, ...data };
     setFormData(merged as typeof formData);
+
+    setSubmitting(true);
+    setSubmitNote(null);
     try {
-      // Send text fields as JSON — the server doesn't need the document files at the
-      // application stage. Documents are uploaded later via /api/chauffeur/upload-doc
-      // once the applicant's account is approved and they log in on the mobile app.
-      const apiBase = "";
-      const res = await fetch(`${apiBase}/api/applications/driver`, {
+      // 1. La solicitud crea la fila en driver_applications y, si el teléfono no
+      //    tiene cuenta todavía, devuelve un token de subida de una hora.
+      const res = await fetch("/api/applications/driver", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -329,15 +374,39 @@ export default function DriverSignup() {
           vehicleType:  merged.vehicleType  ?? "",
         }),
       });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({})) as { error?: string };
-        throw new Error(err.error || `Application failed (${res.status})`);
+      const payload = (await res.json().catch(() => ({}))) as {
+        error?: string;
+        upload_token?: string;
+        requires_login?: boolean;
+        message?: string;
+      };
+      if (!res.ok) throw new Error(payload.error || `Application failed (${res.status})`);
+
+      // 2. Con el token, cada archivo pide su URL firmada y se sube a Storage.
+      if (payload.upload_token) {
+        const failed = await uploadAllDocuments(payload.upload_token, docFiles, setUploadedCount);
+        if (failed.length > 0) {
+          setSubmitNote(
+            `Your application was received, but ${failed.length} document(s) could not be uploaded: ` +
+              `${failed.join(", ")}. Our team will contact you to complete them.`,
+          );
+        }
+      } else if (payload.requires_login) {
+        setSubmitNote(
+          payload.message ??
+            "Application received. Log in with this phone number to upload your documents.",
+        );
       }
     } catch (err) {
       const e = err as { message?: string };
       console.error("[DriverSignup] Application submission error:", e.message);
-      // Still proceed to success screen — application data is preserved in the form
-      // and the team can follow up via email if the API call failed.
+      // Se avanza igualmente a la pantalla de éxito: el equipo puede hacer
+      // seguimiento por email si la llamada falló.
+      setSubmitNote(
+        "We could not confirm your application automatically. Our team will contact you by email.",
+      );
+    } finally {
+      setSubmitting(false);
     }
     goNext();
   });
@@ -397,8 +466,14 @@ export default function DriverSignup() {
 
       {/* ── Body ── */}
       <div className="flex-1 flex">
+        {/*
+          `self-start` evita que el flex padre estire el panel hasta la altura de
+          <main>: sin él crecía con la lista de documentos. `sticky` lo mantiene fijo
+          mientras el formulario hace scroll. 69px = header (h-16 + borde) + barra de
+          progreso (h-1).
+        */}
         {step < totalSteps && (
-          <aside className="hidden lg:flex flex-col w-80 xl:w-96 bg-primary p-10 relative overflow-hidden shrink-0">
+          <aside className="hidden lg:flex flex-col w-80 xl:w-96 bg-primary p-10 overflow-hidden shrink-0 self-start sticky top-[69px] h-[calc(100vh-69px)]">
             <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_50%,#fff_1px,transparent_1px),radial-gradient(circle_at_80%_50%,#fff_1px,transparent_1px)] [background-size:40px_40px]" />
             <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/85" />
             <div className="relative z-10 flex flex-col h-full">
@@ -782,13 +857,13 @@ export default function DriverSignup() {
                   <form onSubmit={onStep4} className="space-y-4">
                     {/* ── Counter badge ── */}
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm text-gray-500">Upload all 11 required documents. Accepted: JPG, PNG, PDF · Max 10 MB each.</p>
+                      <p className="text-sm text-gray-500">Upload all {DOCS_DEF.length} required documents. Accepted: JPG, PNG, PDF · Max 10 MB each.</p>
                       <span className={`text-sm font-bold px-3 py-1 rounded-full ${
-                        Object.values(docFiles).filter(Boolean).length === 11
+                        Object.values(docFiles).filter(Boolean).length === DOCS_DEF.length
                           ? "bg-emerald-100 text-emerald-700"
                           : "bg-slate-100 text-slate-500"
                       }`}>
-                        {Object.values(docFiles).filter(Boolean).length}/11
+                        {Object.values(docFiles).filter(Boolean).length}/{DOCS_DEF.length}
                       </span>
                     </div>
 
@@ -798,8 +873,8 @@ export default function DriverSignup() {
                       <p className="text-primary text-xs font-medium">Your documents are encrypted and reviewed only by our compliance team.</p>
                     </div>
 
-                    {/* ── 11 docs grouped by category ── */}
-                    {(["Personal Identity", "Vehicle Documents", "Professional Credentials", "Legal & Compliance"] as const).map((category) => {
+                    {/* ── docs grouped by category ── */}
+                    {DOC_CATEGORIES.map((category) => {
                       const docs = DOCS_DEF.filter((d) => d.category === category);
                       return (
                         <div key={category} className="space-y-3">
@@ -851,15 +926,20 @@ export default function DriverSignup() {
                     </div>
 
                     <div className="flex gap-3 pt-2">
-                      <Button type="button" variant="outline" onClick={goBack} className="h-13 px-6 rounded-xl border-gray-200 font-semibold">
+                      <Button type="button" variant="outline" onClick={goBack} disabled={submitting} className="h-13 px-6 rounded-xl border-gray-200 font-semibold">
                         <ChevronLeft size={18} className="mr-1" /> Back
                       </Button>
                       <Button
                         type="submit"
+                        disabled={submitting}
                         className="flex-1 h-13 text-base font-bold bg-primary hover:bg-primary/90 text-white rounded-xl shadow-lg shadow-primary/25"
                         data-testid="button-submit"
                       >
-                        Submit application <ChevronRight size={18} className="ml-1" />
+                        {submitting ? (
+                          <>Uploading documents… {uploadedCount}/{DOCS_DEF.length}</>
+                        ) : (
+                          <>Submit application <ChevronRight size={18} className="ml-1" /></>
+                        )}
                       </Button>
                     </div>
                   </form>
@@ -896,6 +976,12 @@ export default function DriverSignup() {
                       <span className="font-bold text-gray-900">{formData.firstName}</span>. Our team will review your documents and contact you within{" "}
                       <span className="text-primary font-bold">1–2 business days</span>.
                     </p>
+                    {submitNote && (
+                      <div className="max-w-md mx-auto mb-10 bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3 text-left">
+                        <AlertCircle size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                        <p className="text-sm text-amber-900">{submitNote}</p>
+                      </div>
+                    )}
                   </motion.div>
 
                   <motion.div

@@ -1,121 +1,148 @@
 import { NextRequest } from "next/server";
-import { withAuth, errorResponse } from "@/lib/server/auth";
+import { withUploadAccess, errorResponse } from "@/lib/server/auth";
 import { getSupabase } from "@/lib/server/supabase";
 import { supabaseUrl } from "@/lib/server/env";
+import { DOCS_BUCKET, DOC_KEY_LIST, isDocKey } from "@/lib/driver-documents";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Documentos del conductor. Portado de api/driver/documents.ts.
+ * Documentos del conductor.
  *
- * GET  — estado actual de los documentos.
- * POST — genera una URL firmada para subir un documento a Supabase Storage.
+ * GET  — documentos ya subidos, indexados por doc_key.
+ * POST — URL firmada para subir un documento y registro de la fila.
+ *
+ * MODELO — `driver_documents` guarda UNA FILA POR DOCUMENTO, identificada por
+ * `doc_key`. La versión anterior de este archivo asumía una columna por
+ * documento (`license_doc_url`, `profile_photo_url`, …): ninguna de esas
+ * columnas existe en Supabase, así que ambos handlers fallaban contra la base
+ * real. El esquema de filas es el que ya escriben la app móvil y el backend de
+ * app.urbont.com, y es el que se respeta aquí.
+ *
+ * Columnas vivas de la tabla, comprobadas contra producción:
+ *   - `storage_url` e `image_url` llevan la URL pública (las dos, poblada al
+ *     100%: distintos clientes leen una u otra).
+ *   - `url` está nula en todas las filas — columna muerta, no se escribe.
+ *   - `status` es el estado real; `doc_status` quedó desincronizado y tampoco
+ *     se toca.
+ *   - `document_type` duplica `doc_key`; se escriben ambas por compatibilidad.
  */
 
-type DocField =
-  | "license_doc_url"
-  | "profile_photo_url"
-  | "bg_check_url"
-  | "vehicle_registration_url"
-  | "personal_insurance_url"
-  | "commercial_insurance_url"
-  | "vehicle_inspection_url"
-  | "tnc_permit_url"
-  | "defensive_driving_url"
-  | "w9_url"
-  | "drug_test_url"
-  // Alias heredado: se mantiene por compatibilidad con clientes antiguos.
-  | "insurance_doc_url";
+/** Columnas que se devuelven al cliente. */
+const ROW_COLUMNS =
+  "id, doc_key, storage_url, image_url, file_name, status, rejection_reason, uploaded_at, updated_at";
 
-const VALID_FIELDS: DocField[] = [
-  "license_doc_url",
-  "profile_photo_url",
-  "bg_check_url",
-  "vehicle_registration_url",
-  "personal_insurance_url",
-  "commercial_insurance_url",
-  "vehicle_inspection_url",
-  "tnc_permit_url",
-  "defensive_driving_url",
-  "w9_url",
-  "drug_test_url",
-  "insurance_doc_url",
-];
+interface DocRow {
+  id: string;
+  doc_key: string;
+  [key: string]: unknown;
+}
 
-// Columnas que existen hoy en Supabase.
-const EXISTING_COLUMNS =
-  "id, status, rejection_reason, license_doc_url, vehicle_registration_url, insurance_doc_url, updated_at";
-// Columnas de la migración a 11 documentos: sólo disponibles tras ejecutarla.
-const NEW_COLUMNS =
-  "profile_photo_url, bg_check_url, personal_insurance_url, commercial_insurance_url, vehicle_inspection_url, tnc_permit_url, defensive_driving_url, w9_url, drug_test_url";
-
-const BUCKET = "driver-documents";
-
-export const GET = withAuth(async (_req: NextRequest, session) => {
+export const GET = withUploadAccess(async (_req: NextRequest, userId) => {
   const supabase = getSupabase();
 
   const { data, error } = await supabase
     .from("driver_documents")
-    .select(`${EXISTING_COLUMNS}, ${NEW_COLUMNS}`)
-    .eq("driver_id", session.user_id)
-    .maybeSingle();
+    .select(ROW_COLUMNS)
+    .eq("driver_id", userId)
+    .order("updated_at", { ascending: false });
+  if (error) throw error;
 
-  // Si las columnas nuevas aún no existen (pre-migración), se reintenta con las
-  // antiguas. Este repliegue venía del original y se conserva.
-  if (error?.message?.includes("column") || error?.message?.includes("does not exist")) {
-    const { data: fallback, error: fbErr } = await supabase
-      .from("driver_documents")
-      .select(EXISTING_COLUMNS)
-      .eq("driver_id", session.user_id)
-      .maybeSingle();
-    if (fbErr) throw fbErr;
-    return Response.json({ documents: fallback ?? null });
+  const rows = (data ?? []) as unknown as DocRow[];
+
+  // Indexado por doc_key para que el cliente no tenga que recorrer el array.
+  // Al venir ordenado por updated_at desc, si hubiera filas repetidas para una
+  // misma clave gana la más reciente.
+  const documents: Record<string, DocRow> = {};
+  for (const row of rows) {
+    if (row.doc_key && !(row.doc_key in documents)) documents[row.doc_key] = row;
   }
 
-  if (error) throw error;
-  return Response.json({ documents: data ?? null });
+  return Response.json({ documents, count: rows.length });
 });
 
-export const POST = withAuth(async (req: NextRequest, session) => {
+export const POST = withUploadAccess(async (req: NextRequest, userId) => {
   const supabase = getSupabase();
 
-  const { field, filename, content_type } = (await req.json()) as {
-    field?: DocField;
+  const body = (await req.json()) as {
+    doc_key?: string;
     filename?: string;
     content_type?: string;
   };
+  const { doc_key, filename, content_type } = body;
 
-  if (!field || !VALID_FIELDS.includes(field)) {
-    return errorResponse(`field must be one of: ${VALID_FIELDS.join(", ")}`, 400);
+  if (!isDocKey(doc_key)) {
+    return errorResponse(`doc_key must be one of: ${DOC_KEY_LIST.join(", ")}`, 400);
   }
   if (!filename || !content_type) {
     return errorResponse("filename and content_type are required.", 400);
   }
 
-  const ext = filename.split(".").pop() ?? "jpg";
-  const storagePath = `${session.user_id}/${field}/${Date.now()}.${ext}`;
+  // Misma convención que las filas ya existentes: <driver_id>/<doc_key>.<ext>,
+  // de modo que volver a subir un documento reemplaza el anterior en Storage.
+  const ext = (filename.split(".").pop() ?? "jpg").toLowerCase();
+  const storagePath = `${userId}/${doc_key}.${ext}`;
+  const publicUrl = `${supabaseUrl()}/storage/v1/object/public/${DOCS_BUCKET}/${storagePath}`;
 
-  // URL firmada de subida (válida 5 minutos).
   const { data: signedData, error: signedErr } = await supabase.storage
-    .from(BUCKET)
-    .createSignedUploadUrl(storagePath);
+    .from(DOCS_BUCKET)
+    .createSignedUploadUrl(storagePath, { upsert: true });
   if (signedErr) throw signedErr;
 
-  // Se preregistra la ruta para saber que el archivo está en camino.
-  await supabase.from("driver_documents").upsert(
-    {
-      driver_id: session.user_id,
-      [field]: storagePath,
-      status: "pending_documents",
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "driver_id" },
-  );
+  // La tabla no tiene índice único en (driver_id, doc_key), así que no se puede
+  // usar upsert con onConflict: se busca la fila y se actualiza, o se inserta.
+  const now = new Date().toISOString();
+  const { data: existing, error: findErr } = await supabase
+    .from("driver_documents")
+    .select("id")
+    .eq("driver_id", userId)
+    .eq("doc_key", doc_key)
+    .maybeSingle();
+  if (findErr) throw findErr;
+
+  const fields = {
+    storage_url: publicUrl,
+    image_url: publicUrl,
+    file_name: filename,
+    status: "pending",
+    rejection_reason: null,
+    updated_at: now,
+  };
+
+  if (existing) {
+    const { error } = await supabase
+      .from("driver_documents")
+      .update(fields)
+      .eq("id", (existing as { id: string }).id);
+    if (error) throw error;
+  } else {
+    // `driver_name` es obligatorio en la práctica: el panel de administración lo
+    // usa sin comprobar nulos (`d.driverName.toLowerCase()`), así que una fila
+    // sin nombre rompe su listado de documentos entero.
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("first_name, last_name")
+      .eq("id", userId)
+      .maybeSingle();
+    const p = profile as { first_name?: string | null; last_name?: string | null } | null;
+    const driverName = [p?.first_name, p?.last_name].filter(Boolean).join(" ").trim();
+
+    const { error } = await supabase.from("driver_documents").insert({
+      driver_id: userId,
+      doc_key,
+      document_type: doc_key,
+      driver_name: driverName || "Sin nombre",
+      uploaded_at: now,
+      created_at: now,
+      ...fields,
+    });
+    if (error) throw error;
+  }
 
   return Response.json({
     upload_url: signedData.signedUrl,
     token: signedData.token,
     path: storagePath,
-    public_url: `${supabaseUrl()}/storage/v1/object/public/${BUCKET}/${storagePath}`,
+    public_url: publicUrl,
   });
 });

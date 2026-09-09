@@ -91,10 +91,28 @@ export async function findProfileByPhone(phone: string): Promise<Profile | null>
   return (data ?? null) as unknown as Profile | null;
 }
 
+/**
+ * Busca un perfil por email.
+ *
+ * Hace falta además de la búsqueda por teléfono porque `auth.admin.createUser`
+ * rechaza emails duplicados: quien ya entró con Google tiene cuenta con email
+ * pero sin teléfono, así que buscar sólo por teléfono no lo encontraba y el
+ * alta fallaba con "A user with this email address has already been registered".
+ */
+export async function findProfileByEmail(email: string): Promise<Profile | null> {
+  const { data, error } = await getSupabase()
+    .from("profiles")
+    .select(PROFILE_COLUMNS)
+    .eq("email", email)
+    .maybeSingle();
+  if (error) throw error;
+  return (data ?? null) as unknown as Profile | null;
+}
+
 /** Crea el usuario de auth y su perfil para un teléfono ya verificado. */
 export async function createPhoneUser(
   phone: string,
-  extra?: { first_name?: string; email?: string },
+  extra?: { first_name?: string; last_name?: string; email?: string; role?: string },
 ): Promise<Profile> {
   const supabase = getSupabase();
 
@@ -115,7 +133,8 @@ export async function createPhoneUser(
         phone,
         email: extra?.email ?? null,
         first_name: extra?.first_name ?? null,
-        role: "passenger",
+        last_name: extra?.last_name ?? null,
+        role: extra?.role ?? "passenger",
       },
       { onConflict: "id" },
     )

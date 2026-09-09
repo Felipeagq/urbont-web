@@ -35,19 +35,11 @@ export const POST = withAuth(async (req: NextRequest, session) => {
     .eq("id", session.user_id);
   if (profErr) throw profErr;
 
-  const { data: docData, error: docErr } = await supabase
-    .from("driver_documents")
-    .upsert(
-      {
-        driver_id: session.user_id,
-        status: "pending_documents",
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "driver_id" },
-    )
-    .select()
-    .single();
-  if (docErr) throw docErr;
+  // Aquí no se toca driver_documents. La versión anterior insertaba una fila
+  // suelta con `onConflict: "driver_id"`, que además de necesitar un índice
+  // único inexistente creaba un documento sin `doc_key`: en el modelo de una
+  // fila por documento, cada fila la crea su propia subida en
+  // /api/driver/documents.
 
   // Datos del vehículo en la columna JSONB del perfil.
   await supabase
@@ -63,7 +55,6 @@ export const POST = withAuth(async (req: NextRequest, session) => {
 
   return Response.json({
     success: true,
-    document_id: (docData as { id: string }).id,
     status: "pending_documents",
     message: "Registration saved. Please upload your documents to complete the application.",
   });

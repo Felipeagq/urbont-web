@@ -1,6 +1,6 @@
 import "server-only";
 import { NextRequest } from "next/server";
-import { extractBearer, verifySessionToken, type SessionPayload } from "./jwt";
+import { extractBearer, verifySessionToken, verifyUploadToken, type SessionPayload } from "./jwt";
 
 /**
  * Autenticación para route handlers.
@@ -35,6 +35,32 @@ export function withAuth(
 
     try {
       return await handler(req, session);
+    } catch (err) {
+      console.error(`[${req.nextUrl.pathname}]`, (err as Error).message);
+      return errorResponse("Internal server error.", 500);
+    }
+  };
+}
+
+/**
+ * Como withAuth, pero acepta además el token de subida que /api/applications/driver
+ * entrega al solicitante recién creado, que aún no tiene sesión.
+ *
+ * Sólo lo usa /api/driver/documents: el token de subida no abre ningún otro
+ * handler, porque verifySessionToken rechaza los tokens con `type`.
+ */
+export function withUploadAccess(
+  handler: (req: NextRequest, userId: string) => Promise<Response>,
+): (req: NextRequest) => Promise<Response> {
+  return async (req: NextRequest) => {
+    const token = extractBearer(req.headers.get("authorization"));
+    const userId = token
+      ? (verifySessionToken(token)?.user_id ?? verifyUploadToken(token)?.user_id ?? null)
+      : null;
+    if (!userId) return errorResponse("Authentication required.", 401);
+
+    try {
+      return await handler(req, userId);
     } catch (err) {
       console.error(`[${req.nextUrl.pathname}]`, (err as Error).message);
       return errorResponse("Internal server error.", 500);

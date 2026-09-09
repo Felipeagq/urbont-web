@@ -65,7 +65,32 @@ export function signSessionToken(payload: SessionPayload): string {
 export function verifySessionToken(token: string): SessionPayload | null {
   const payload = verifyJwt(token);
   if (!payload) return null;
+  // Los tokens con `type` son de propósito único (OTP, subida de documentos) y
+  // no valen como sesión. Sin esta comprobación, un token de OTP o de subida
+  // pasaba por cualquier handler envuelto en withAuth.
+  if (payload["type"] !== undefined) return null;
+  if (typeof payload["user_id"] !== "string") return null;
   return payload as unknown as SessionPayload;
+}
+
+/**
+ * Token de subida de documentos para un solicitante recién creado, que todavía
+ * no ha iniciado sesión. Sólo lo acepta /api/driver/documents: no sirve como
+ * sesión porque lleva `type`, que verifySessionToken rechaza.
+ *
+ * Vive una hora — lo justo para completar la subida del formulario.
+ */
+export function signUploadToken(userId: string): string {
+  return signJwt({ user_id: userId, type: "upload" }, 60 * 60);
+}
+
+export function verifyUploadToken(token: string): { user_id: string } | null {
+  const payload = verifyJwt(token);
+  if (!payload) return null;
+  if (payload["type"] !== "upload") return null;
+  const userId = payload["user_id"];
+  if (typeof userId !== "string") return null;
+  return { user_id: userId };
 }
 
 /** Extrae el token de una cabecera `Authorization: Bearer <token>`. */
