@@ -1,0 +1,36 @@
+name: Notify on push
+
+# Se dispara en cada push a cualquier rama.
+# No envía correo por sí mismo: usa el sistema NATIVO de notificaciones
+# de GitHub Actions. Para recibir el email, el dueño del repo debe
+# activarlo una vez en su cuenta (no se puede hacer desde código):
+#   1. Ir a https://github.com/settings/notifications
+#   2. En la sección "Actions", desmarcar "Only notify for failed workflows"
+#      (o marcar que quieres notificación por email para TODAS las
+#      ejecuciones, no solo las fallidas)
+#   3. Asegurarse de estar "Watching" este repositorio
+#      (botón "Watch" > "All Activity" en la página del repo)
+#
+# Con eso, GitHub envía el correo automáticamente desde su propio
+# sistema (notifications@github.com) cada vez que este workflow corre,
+# es decir, en cada push — sin SMTP ni secrets.
+
+on:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Registrar información del push
+        run: |
+          {
+            echo "### 📬 Nuevo push recibido"
+            echo "- **Repositorio:** ${{ github.repository }}"
+            echo "- **Rama:** ${{ github.ref_name }}"
+            echo "- **Autor:** ${{ github.actor }}"
+            echo "- **Commit:** ${{ github.sha }}"
+            echo "- **Mensaje:** ${{ github.event.head_commit.message }}"
+          } >> "$GITHUB_STEP_SUMMARY"

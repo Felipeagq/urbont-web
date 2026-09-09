@@ -27,8 +27,11 @@ function AnimatedCounter({ to, suffix = "" }: { to: number; suffix?: string }) {
   return <motion.span ref={ref}>{display}</motion.span>;
 }
 
-/* ─── Welcome Modal ─────────────────────────────────────────── */
-function WelcomeModal() {
+/* ─── Welcome Modal (original, image hero) ────────────────────
+   Conservado para poder volver a esta versión: solo hay que
+   cambiar el render de <WelcomeModal /> más abajo por
+   <WelcomeModalImage />. ───────────────────────────────────── */
+function WelcomeModalImage() {
   const { t } = useLanguage();
   const w = t.welcomeModal;
   const router = useRouter();
@@ -105,6 +108,124 @@ function WelcomeModal() {
               className="h-40 w-auto object-contain drop-shadow-2xl"
             />
           </motion.div>
+
+          {/* Urbont brand text in image */}
+          <div className="absolute left-5 bottom-5 z-10">
+            <div className="flex items-center gap-2">
+              <img src="/urbont-logo.png" alt="" className="w-7 h-7 rounded-lg object-contain" />
+              <span className="text-white font-extrabold text-lg tracking-tight drop-shadow-md">Urbont</span>
+            </div>
+          </div>
+
+          {/* X close button */}
+          <button
+            onClick={dismiss}
+            className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-black/30 hover:bg-black/50 backdrop-blur-sm flex items-center justify-center transition-colors"
+          >
+            <X size={17} className="text-white" />
+          </button>
+        </div>
+
+        {/* ── Content section ── */}
+        <div className="px-5 pt-6 pb-7">
+          <h2 className="text-[22px] font-extrabold text-gray-900 leading-snug mb-1.5 tracking-tight">
+            {w.title}
+          </h2>
+          <p className="text-sm text-gray-600 mb-5 leading-relaxed">
+            {w.subtitle}
+          </p>
+
+          {/* Primary CTA — Urbont blue */}
+          <button
+            onClick={dismiss}
+            className="w-full h-[52px] bg-primary hover:bg-primary/90 text-white font-bold rounded-xl text-[15px] transition-colors mb-5 shadow-lg shadow-primary/25"
+          >
+            {w.primaryCta}
+          </button>
+
+          {/* Divider section */}
+          <p className="text-[13px] text-gray-500 leading-relaxed mb-5">
+            {w.loggedInDesc}
+          </p>
+
+          {/* Login CTA — outline blue */}
+          <button
+            onClick={() => { dismiss(); router.push("/login"); }}
+            className="w-full h-[52px] border-2 border-primary text-primary hover:bg-primary hover:text-white font-bold rounded-xl text-[15px] transition-all mb-4"
+          >
+            {w.loginCta}
+          </button>
+
+          {/* Create account link */}
+          <p className="text-center text-[13px] text-gray-500">
+            <button onClick={() => { dismiss(); router.push("/conductor"); }} className="text-primary font-semibold hover:underline underline-offset-2">
+              {w.signupCta}
+            </button>
+          </p>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+/* ─── Welcome Modal (video hero) ───────────────────────────────
+   Versión activa: usa los últimos 20s de public/video/video_intro.mp4
+   (recortados a public/video/video_intro_outro.mp4) en vez de la
+   imagen estática. Para volver a la versión con imagen, ver
+   WelcomeModalImage más arriba. ─────────────────────────────── */
+function WelcomeModal() {
+  const { t } = useLanguage();
+  const w = t.welcomeModal;
+  const router = useRouter();
+  const [open, setOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    const seen = localStorage.getItem("urbont_welcomed");
+    if (!seen) {
+      const timer = setTimeout(() => setOpen(true), 1200);
+      return () => clearTimeout(timer);
+    }
+    return undefined;
+  }, []);
+
+  const dismiss = () => {
+    localStorage.setItem("urbont_welcomed", "1");
+    setOpen(false);
+  };
+
+  if (!open) return null;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60" onClick={dismiss} />
+
+      {/* Card — bottom sheet on mobile, centered modal on desktop */}
+      <motion.div
+        initial={{ y: "100%" }}
+        animate={{ y: 0 }}
+        transition={{ type: "spring", damping: 32, stiffness: 320 }}
+        className="relative bg-white rounded-t-[28px] sm:rounded-[28px] w-full sm:max-w-[390px] overflow-hidden shadow-2xl"
+      >
+        {/* ── Hero video section ── */}
+        <div className="relative h-52 overflow-hidden bg-primary">
+          {/* Últimos 20s del video de intro como fondo */}
+          <video
+            src="/video/video_intro_outro.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            className="absolute inset-0 w-full h-full object-cover object-center"
+            style={{ filter: "brightness(0.55) saturate(1.2)" }}
+          />
+          {/* Blue color overlay */}
+          <div className="absolute inset-0 bg-primary/50 mix-blend-multiply" />
 
           {/* Urbont brand text in image */}
           <div className="absolute left-5 bottom-5 z-10">
