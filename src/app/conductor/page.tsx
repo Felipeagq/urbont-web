@@ -469,13 +469,16 @@ export default function DriverSignup() {
         {/*
           `self-start` evita que el flex padre estire el panel hasta la altura de
           <main>: sin él crecía con la lista de documentos. `sticky` lo mantiene fijo
-          mientras el formulario hace scroll. 69px = header (h-16 + borde) + barra de
-          progreso (h-1).
+          mientras el formulario hace scroll.
+
+          El desplazamiento es la altura del header: h-16 (64px) + su borde (1px) +
+          la barra de progreso h-1 (4px) = 69px. En la escala de Tailwind cada
+          unidad son 4px, así que 69px = 17.25.
         */}
         {step < totalSteps && (
-          <aside className="hidden lg:flex flex-col w-80 xl:w-96 bg-primary p-10 overflow-hidden shrink-0 self-start sticky top-[69px] h-[calc(100vh-69px)]">
-            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_50%,#fff_1px,transparent_1px),radial-gradient(circle_at_80%_50%,#fff_1px,transparent_1px)] [background-size:40px_40px]" />
-            <div className="absolute inset-0 bg-gradient-to-br from-primary via-primary to-primary/85" />
+          <aside className="hidden lg:flex flex-col w-80 xl:w-96 bg-primary p-10 overflow-hidden shrink-0 self-start sticky top-17.25 h-[calc(100vh-69px)]">
+            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_20%_50%,#fff_1px,transparent_1px),radial-gradient(circle_at_80%_50%,#fff_1px,transparent_1px)] bg-size-[40px_40px]" />
+            <div className="absolute inset-0 bg-linear-to-br from-primary via-primary to-primary/85" />
             <div className="relative z-10 flex flex-col h-full">
               <div>
                 <p className="text-white/60 text-sm font-semibold mb-2">Step {step + 1} of {totalSteps}</p>
