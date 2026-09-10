@@ -48,6 +48,22 @@ type Payload = Record<(typeof REQUIRED_FIELDS)[number], string>;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+/**
+ * Los cinco tipos del formulario, traducidos a las tres clases que el motor de
+ * tarifas conoce (`sedan`, `suv`, `van`).
+ *
+ * Hace falta porque el formulario ofrece `hatchback`, `pickup` y `minivan`, que
+ * no existen en `VEHICLE_ALIAS` del backend: guardarlos tal cual dejaría al
+ * chofer sin poder cotizar ningún viaje.
+ */
+const VEHICLE_CATEGORY: Record<string, "sedan" | "suv" | "van"> = {
+  sedan:     "sedan",
+  hatchback: "sedan",   // turismo compacto: se cobra como sedán
+  suv:       "suv",
+  pickup:    "suv",     // el propio formulario los agrupa como «SUV / Truck»
+  minivan:   "van",
+};
+
 export async function POST(req: NextRequest) {
   try {
     const body = (await req.json()) as Partial<Payload>;
@@ -120,6 +136,45 @@ export async function POST(req: NextRequest) {
             role: "chauffeur",
           })
         ).id;
+
+      // El vehículo va también al perfil, no sólo a la solicitud.
+      //
+      // Sin esto el dato se quedaba en `driver_applications` y el chofer no podía
+      // aprobarse nunca: `recalcularVerificacion` exige vehículo y dejaba el
+      // perfil en «Falta registrar el vehículo» aunque el solicitante lo hubiera
+      // rellenado en el formulario.
+      //
+      // `category` en minúscula es lo que lee el emparejador de viajes
+      // (rides/accept.ts). Si falta, el chofer recibe viajes de TODAS las clases,
+      // incluidas las que su vehículo no puede atender.
+      const tipo = data.vehicleType.trim().toLowerCase();
+      const { error: vehicleErr } = await getSupabase()
+        .from("profiles")
+        .update({
+          vehicle: {
+            make:     data.vehicleMake.trim(),
+            model:    data.vehicleModel.trim(),
+            year:     data.vehicleYear.trim(),
+            color:    data.vehicleColor.trim(),
+            plate:    data.licensePlate.trim().toUpperCase(),
+            type:     tipo,                              // lo que declaró el solicitante
+            category: VEHICLE_CATEGORY[tipo] ?? "sedan", // lo que entiende el motor
+          },
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", profileId);
+
+      // No se lanza: la solicitud y el perfil ya existen, y el solicitante debe
+      // poder subir sus documentos igual. Pero tampoco se calla — si esto falla
+      // el chofer vuelve a quedar sin vehículo y nadie se entera, que es
+      // justamente el fallo que este bloque vino a cerrar.
+      if (vehicleErr) {
+        console.error(
+          `[applications/driver] no se pudo guardar el vehículo en el perfil ${profileId}:`,
+          vehicleErr.message,
+        );
+      }
+
       uploadToken = signUploadToken(profileId);
     } catch (err) {
       // La solicitud ya quedó guardada: no se pierde aunque falle la creación
