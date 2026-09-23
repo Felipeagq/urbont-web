@@ -1044,7 +1044,21 @@ export default function Home() {
 
             <motion.div initial={{ opacity: 0, scale: 0.93, y: 24 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }} style={{ y: heroParallax }} className="relative">
               <div className="absolute inset-0 bg-primary/10 rounded-3xl transform translate-x-5 translate-y-5 blur-sm" />
-              <img src="/hero.png" alt="Pasajero subiendo a un Urbont" className="relative rounded-3xl shadow-2xl object-cover w-full h-[420px] md:h-[580px]" />
+              {/* El vídeo en lugar de la foto fija. `poster` deja la misma imagen
+                  mientras carga, así que el hueco nunca se ve vacío, y si el
+                  navegador no reproduce automáticamente —iOS con ahorro de
+                  batería— se queda esa imagen. */}
+              <video
+                src="/video/video_intro_outro.mp4"
+                poster="/hero.png"
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                aria-label="Pasajero subiendo a un Urbont"
+                className="relative rounded-3xl shadow-2xl object-cover w-full h-[420px] md:h-[580px]"
+              />
 
               <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.6, duration: 0.6 }}
                 className="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-2xl flex items-center gap-3 border border-gray-100">
