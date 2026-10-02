@@ -155,20 +155,25 @@ function UploadBox({
   label,
   hint,
   icon: Icon,
-  uploaded,
-  onToggle,
+  file,
+  onChange,
   error,
 }: {
   label: string;
   hint: string;
   icon: React.ElementType;
-  uploaded: boolean;
-  onToggle: () => void;
+  file: File | null;
+  onChange: (f: File) => void;
   error?: string;
 }) {
+  // Antes esto era un botón que invertía un booleano: marcaba "subido" sin que
+  // hubiera archivo, y el envío final no mandaba ninguno. Ahora abre el
+  // selector de verdad y guarda el File, que es lo que luego se sube.
+  const ref = React.useRef<HTMLInputElement>(null);
+  const uploaded = file !== null;
   return (
     <div
-      onClick={onToggle}
+      onClick={() => ref.current?.click()}
       className={`relative cursor-pointer rounded-2xl border-2 border-dashed p-6 transition-all duration-200
         ${uploaded
           ? "border-emerald-400 bg-emerald-50"
@@ -177,13 +182,22 @@ function UploadBox({
           : "border-gray-200 bg-gray-50 hover:border-primary/50 hover:bg-primary/5"
         }`}
     >
+      <input
+        ref={ref}
+        type="file"
+        accept="image/*,.pdf"
+        className="hidden"
+        onChange={(e) => { if (e.target.files?.[0]) onChange(e.target.files[0]); }}
+      />
       <div className="flex items-start gap-4">
         <div className={`p-3 rounded-xl shrink-0 ${uploaded ? "bg-emerald-100 text-emerald-600" : "bg-white text-gray-400 shadow-sm"}`}>
           {uploaded ? <CheckCircle2 size={22} /> : <Icon size={22} />}
         </div>
         <div className="flex-1 min-w-0">
           <p className={`font-semibold text-sm ${uploaded ? "text-emerald-700" : "text-gray-800"}`}>{label}</p>
-          <p className="text-xs text-gray-500 mt-0.5">{hint}</p>
+          <p className={`text-xs mt-0.5 ${uploaded ? "text-emerald-600 font-medium" : "text-gray-500"}`}>
+            {uploaded ? file!.name : hint}
+          </p>
           {error && <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><AlertCircle size={11} />{error}</p>}
         </div>
         <div className={`shrink-0 p-2 rounded-lg border text-xs font-semibold transition-colors ${uploaded ? "border-emerald-300 text-emerald-600 bg-emerald-100" : "border-gray-200 text-gray-500 bg-white"}`}>
@@ -529,11 +543,60 @@ export default function ValetSignup() {
   const onStep1 = form1.handleSubmit((data) => { setFormData((f) => ({ ...f, ...data })); goNext(); });
   const onStep2 = form2.handleSubmit((data) => { setFormData((f) => ({ ...f, ...data })); goNext(); });
   const onStep3 = form3.handleSubmit((data) => { setFormData((f) => ({ ...f, ...data })); goNext(); });
+  // Los dos documentos del valet. `license` y `photo` son claves que el catálogo
+  // ya acepta, así que no hace falta dar de alta ninguna nueva.
+  const [docFiles, setDocFiles] = React.useState<{ license: File | null; photo: File | null }>({
+    license: null,
+    photo: null,
+  });
+
+  /**
+   * Sube cada documento con el token que devuelve la solicitud: se pide una URL
+   * firmada y el archivo viaja directo a Supabase Storage, sin pasar por Next.
+   * Devuelve las etiquetas de los que fallaron; uno suelto no debe tumbar la
+   * solicitud, que a esas alturas ya está guardada.
+   */
+  async function subirDocumentos(uploadToken: string): Promise<string[]> {
+    const fallidos: string[] = [];
+    const lista: { key: string; label: string; file: File | null }[] = [
+      { key: "license", label: "Government-issued ID", file: docFiles.license },
+      { key: "photo",   label: "Profile photo",        file: docFiles.photo },
+    ];
+
+    for (const doc of lista) {
+      if (!doc.file) { fallidos.push(doc.label); continue; }
+      try {
+        const res = await fetch("/api/driver/documents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${uploadToken}` },
+          body: JSON.stringify({
+            doc_key: doc.key,
+            filename: doc.file.name,
+            content_type: doc.file.type || "application/octet-stream",
+          }),
+        });
+        if (!res.ok) throw new Error(`sign failed (${res.status})`);
+        const { upload_url } = (await res.json()) as { upload_url: string };
+
+        const put = await fetch(upload_url, {
+          method: "PUT",
+          headers: { "Content-Type": doc.file.type || "application/octet-stream" },
+          body: doc.file,
+        });
+        if (!put.ok) throw new Error(`upload failed (${put.status})`);
+      } catch (err) {
+        console.error(`[valet] no se pudo subir ${doc.key}:`, (err as Error).message);
+        fallidos.push(doc.label);
+      }
+    }
+    return fallidos;
+  }
+
   const onStep4 = form4.handleSubmit(async (data) => {
     const merged = { ...formData, ...data };
     setFormData(merged as typeof formData);
     try {
-      await fetch(`/api/applications/valet`, {
+      const res = await fetch(`/api/applications/valet`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -550,6 +613,18 @@ export default function ValetSignup() {
           languages:       merged.languages ?? "",
         }),
       });
+
+      // Antes no se miraba la respuesta, asi que el 404 del endpoint que no
+      // existia pasaba por exito y la solicitud se perdia en silencio.
+      if (!res.ok) throw new Error(`application failed (${res.status})`);
+
+      const payload = (await res.json()) as { upload_token?: string };
+      if (payload.upload_token) {
+        const fallidos = await subirDocumentos(payload.upload_token);
+        if (fallidos.length > 0) {
+          console.error("[ValetSignup] documentos no subidos:", fallidos.join(", "));
+        }
+      }
     } catch (err) {
       const e = err as { message?: string };
       console.error("[ValetSignup] Application submission error:", e.message);
@@ -1011,8 +1086,11 @@ export default function ValetSignup() {
                       label="Government-issued ID"
                       hint="Driver's license, state ID or passport (current and valid)"
                       icon={FileText}
-                      uploaded={form4.watch("idUploaded")}
-                      onToggle={() => form4.setValue("idUploaded", !form4.watch("idUploaded"), { shouldValidate: true })}
+                      file={docFiles.license}
+                      onChange={(f) => {
+                        setDocFiles((d) => ({ ...d, license: f }));
+                        form4.setValue("idUploaded", true, { shouldValidate: true });
+                      }}
                       error={form4.formState.errors.idUploaded?.message}
                     />
 
@@ -1020,8 +1098,11 @@ export default function ValetSignup() {
                       label="Profile photo"
                       hint="Recent photo, neutral background, good lighting (JPG or PNG)"
                       icon={User}
-                      uploaded={form4.watch("photoUploaded")}
-                      onToggle={() => form4.setValue("photoUploaded", !form4.watch("photoUploaded"), { shouldValidate: true })}
+                      file={docFiles.photo}
+                      onChange={(f) => {
+                        setDocFiles((d) => ({ ...d, photo: f }));
+                        form4.setValue("photoUploaded", true, { shouldValidate: true });
+                      }}
                       error={form4.formState.errors.photoUploaded?.message}
                     />
 
