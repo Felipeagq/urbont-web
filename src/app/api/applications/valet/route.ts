@@ -109,6 +109,8 @@ export async function POST(req: NextRequest) {
             last_name: data.lastName.trim(),
             email,
             role: "valet",
+            // Entra en revisión: el panel lo aprueba antes de que pueda despachar.
+            account_status: "pending",
           })
         ).id;
 

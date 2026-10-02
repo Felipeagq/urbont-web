@@ -112,7 +112,7 @@ export async function findProfileByEmail(email: string): Promise<Profile | null>
 /** Crea el usuario de auth y su perfil para un teléfono ya verificado. */
 export async function createPhoneUser(
   phone: string,
-  extra?: { first_name?: string; last_name?: string; email?: string; role?: string },
+  extra?: { first_name?: string; last_name?: string; email?: string; role?: string; account_status?: string },
 ): Promise<Profile> {
   const supabase = getSupabase();
 
@@ -135,6 +135,9 @@ export async function createPhoneUser(
         first_name: extra?.first_name ?? null,
         last_name: extra?.last_name ?? null,
         role: extra?.role ?? "passenger",
+        // Sin esto el perfil nace «active» por defecto, también el de un valet que aún
+        // no ha sido aprobado.
+        ...(extra?.account_status ? { account_status: extra.account_status } : {}),
       },
       { onConflict: "id" },
     )
