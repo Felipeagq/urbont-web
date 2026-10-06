@@ -1696,13 +1696,32 @@ export default function Home() {
                 </a>
               </div>
             </div>
-            {t.footer.columns.map((col) => (
+            {t.footer.columns.map((col, colIndex) => (
               <div key={col.title}>
                 <h4 className="font-bold text-gray-900 mb-5 uppercase text-xs tracking-widest">{col.title}</h4>
                 <ul className="space-y-3.5">
-                  {col.links.map((link) => (
-                    <li key={link}><a href="#" className="text-gray-500 hover:text-primary transition-colors text-sm font-medium">{link}</a></li>
-                  ))}
+                  {col.links.map((link, linkIndex) => {
+                    // Columna "Support": Help center, Safety, Terms of service, Privacy
+                    if (colIndex === 2 && linkIndex === 0) {
+                      return (
+                        <li key={link}>
+                          <button
+                            type="button"
+                            onClick={() => window.dispatchEvent(new Event("urbont:open-support-chat"))}
+                            className="text-gray-500 hover:text-primary transition-colors text-sm font-medium text-left"
+                          >{link}</button>
+                        </li>
+                      );
+                    }
+                    const href =
+                      colIndex === 2 && linkIndex === 1 ? "#seguridad" :
+                      colIndex === 2 && linkIndex === 2 ? "/terms" :
+                      colIndex === 2 && linkIndex === 3 ? "/privacy" :
+                      "#";
+                    return (
+                      <li key={link}><a href={href} className="text-gray-500 hover:text-primary transition-colors text-sm font-medium">{link}</a></li>
+                    );
+                  })}
                 </ul>
               </div>
             ))}

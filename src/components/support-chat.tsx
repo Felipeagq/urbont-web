@@ -132,6 +132,12 @@ export default function SupportChat() {
   }, [open]);
 
   useEffect(() => {
+    const openChat = () => setOpen(true);
+    window.addEventListener("urbont:open-support-chat", openChat);
+    return () => window.removeEventListener("urbont:open-support-chat", openChat);
+  }, []);
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, typing]);
 
