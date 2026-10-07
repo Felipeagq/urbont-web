@@ -114,7 +114,7 @@ export const POST = withUploadAccess(async (req: NextRequest, userId) => {
     rejection_reason: null,
     updated_at: now,
     // Fecha nueva = avisos de vencimiento desde cero, igual que hace el backend.
-    ...(expiry_date ? { expiry_date, notified_30d: false, notified_7d: false } : {}),
+    ...(expiry_date ? { expiry_date, notified_30d: false, notified_15d: false, notified_7d: false } : {}),
   };
 
   if (existing) {
