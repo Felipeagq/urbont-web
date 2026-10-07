@@ -46,6 +46,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRouter } from "next/navigation";
+import { isFutureDate, tomorrowYmd } from "@/lib/driver-documents";
 
 /* ─── Zod schemas per step ─── */
 const step1Schema = z.object({
@@ -549,6 +550,9 @@ export default function ValetSignup() {
     license: null,
     photo: null,
   });
+  // El ID vence: sin fecha no le llegarían los avisos de vencimiento.
+  const [idExpiry, setIdExpiry] = React.useState("");
+  const [idExpiryError, setIdExpiryError] = React.useState<string | null>(null);
 
   /**
    * Sube cada documento con el token que devuelve la solicitud: se pide una URL
@@ -573,6 +577,7 @@ export default function ValetSignup() {
             doc_key: doc.key,
             filename: doc.file.name,
             content_type: doc.file.type || "application/octet-stream",
+            ...(doc.key === "license" && idExpiry ? { expiry_date: idExpiry } : {}),
           }),
         });
         if (!res.ok) throw new Error(`sign failed (${res.status})`);
@@ -593,6 +598,10 @@ export default function ValetSignup() {
   }
 
   const onStep4 = form4.handleSubmit(async (data) => {
+    if (!isFutureDate(idExpiry)) {
+      setIdExpiryError(idExpiry ? "Your ID must not be expired" : "Enter the expiration date of your ID");
+      return;
+    }
     const merged = { ...formData, ...data };
     setFormData(merged as typeof formData);
     try {
@@ -1093,6 +1102,19 @@ export default function ValetSignup() {
                       }}
                       error={form4.formState.errors.idUploaded?.message}
                     />
+                    <div>
+                      <label className="flex items-center gap-3 text-xs font-semibold text-gray-600">
+                        <span>ID expiration date<span className="text-red-500 ml-0.5">*</span></span>
+                        <input
+                          type="date"
+                          min={tomorrowYmd()}
+                          value={idExpiry}
+                          onChange={(e) => { setIdExpiry(e.target.value); setIdExpiryError(null); }}
+                          className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm font-normal text-gray-800 bg-white focus:outline-none focus:border-primary/50"
+                        />
+                      </label>
+                      {idExpiryError && <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><AlertCircle size={11} />{idExpiryError}</p>}
+                    </div>
 
                     <UploadBox
                       label="Profile photo"

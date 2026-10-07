@@ -30,7 +30,7 @@ export const dynamic = "force-dynamic";
 
 /** Columnas que se devuelven al cliente. */
 const ROW_COLUMNS =
-  "id, doc_key, storage_url, image_url, file_name, status, rejection_reason, uploaded_at, updated_at";
+  "id, doc_key, storage_url, image_url, file_name, status, rejection_reason, uploaded_at, updated_at, expiry_date";
 
 interface DocRow {
   id: string;
@@ -68,14 +68,20 @@ export const POST = withUploadAccess(async (req: NextRequest, userId) => {
     doc_key?: string;
     filename?: string;
     content_type?: string;
+    expiry_date?: string | null;
   };
-  const { doc_key, filename, content_type } = body;
+  const { doc_key, filename, content_type, expiry_date } = body;
 
   if (!isDocKey(doc_key)) {
     return errorResponse(`doc_key must be one of: ${DOC_KEY_LIST.join(", ")}`, 400);
   }
   if (!filename || !content_type) {
     return errorResponse("filename and content_type are required.", 400);
+  }
+  // Sólo el formato: "posterior a hoy" lo decide el navegador, que sabe el día
+  // local del conductor; en UTC una fecha válida podría verse como "hoy".
+  if (expiry_date != null && (typeof expiry_date !== "string" || isNaN(Date.parse(expiry_date)) || !/^\d{4}-\d{2}-\d{2}$/.test(expiry_date))) {
+    return errorResponse("expiry_date must be YYYY-MM-DD.", 400);
   }
 
   // Misma convención que las filas ya existentes: <driver_id>/<doc_key>.<ext>,
@@ -107,6 +113,8 @@ export const POST = withUploadAccess(async (req: NextRequest, userId) => {
     status: "pending",
     rejection_reason: null,
     updated_at: now,
+    // Fecha nueva = avisos de vencimiento desde cero, igual que hace el backend.
+    ...(expiry_date ? { expiry_date, notified_30d: false, notified_7d: false } : {}),
   };
 
   if (existing) {

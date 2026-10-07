@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useRouter } from "next/navigation";
-import { DOCS_DEF, DOC_CATEGORIES } from "@/lib/driver-documents";
+import { DOCS_DEF, DOC_CATEGORIES, isFutureDate, tomorrowYmd } from "@/lib/driver-documents";
 
 /* ─── Zod schemas per step ─── */
 const step1Schema = z.object({
@@ -136,6 +136,7 @@ const sidebarItems = [
 async function uploadAllDocuments(
   uploadToken: string,
   files: Record<string, File | null>,
+  expiries: Record<string, string>,
   onProgress: (n: number) => void,
 ): Promise<string[]> {
   const failed: string[] = [];
@@ -158,6 +159,7 @@ async function uploadAllDocuments(
           doc_key: doc.key,
           filename: file.name,
           content_type: file.type || "application/octet-stream",
+          ...(doc.expires && expiries[doc.key] ? { expiry_date: expiries[doc.key] } : {}),
         }),
       });
       if (!res.ok) throw new Error(`sign failed (${res.status})`);
@@ -196,6 +198,9 @@ function RealFileUpload({
   onChange,
   error,
   color,
+  expires,
+  expiry,
+  onExpiryChange,
 }: {
   label: string;
   hint: string;
@@ -203,6 +208,9 @@ function RealFileUpload({
   onChange: (f: File) => void;
   error?: string;
   color?: string;
+  expires?: boolean;
+  expiry?: string;
+  onExpiryChange?: (v: string) => void;
 }) {
   const ref = React.useRef<HTMLInputElement>(null);
   const accent = color || "#001F3F";
@@ -236,6 +244,18 @@ function RealFileUpload({
           </div>
         </div>
       </button>
+      {expires && (
+        <label className="mt-2 flex items-center gap-3 text-xs font-semibold text-gray-600">
+          <span>Expiration date<span className="text-red-500 ml-0.5">*</span></span>
+          <input
+            type="date"
+            min={tomorrowYmd()}
+            value={expiry ?? ""}
+            onChange={(e) => onExpiryChange?.(e.target.value)}
+            className="border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm font-normal text-gray-800 bg-white focus:outline-none focus:border-primary/50"
+          />
+        </label>
+      )}
       {error && <p className="text-xs text-red-500 mt-1 flex items-center gap-1"><AlertCircle size={11} />{error}</p>}
       <input
         ref={ref}
@@ -277,6 +297,8 @@ export default function DriverSignup() {
     Object.fromEntries(DOCS_DEF.map((d) => [d.key, null])),
   );
   const [docErrors, setDocErrors] = React.useState<Record<string, string>>({});
+  /** Fecha de vencimiento por doc_key, sólo para los documentos que vencen. */
+  const [docExpiry, setDocExpiry] = React.useState<Record<string, string>>({});
   const [submitting, setSubmitting] = React.useState(false);
   const [uploadedCount, setUploadedCount] = React.useState(0);
   /** Aviso que se muestra en la pantalla final si algo no salió del todo bien. */
@@ -341,6 +363,11 @@ export default function DriverSignup() {
     const docErrs: Record<string, string> = {};
     for (const doc of DOCS_DEF) {
       if (!docFiles[doc.key]) docErrs[doc.key] = `${doc.label} is required`;
+      else if (doc.expires && !isFutureDate(docExpiry[doc.key])) {
+        docErrs[doc.key] = docExpiry[doc.key]
+          ? `${doc.label} must not be expired`
+          : `Enter the expiration date of your ${doc.label}`;
+      }
     }
     if (Object.keys(docErrs).length > 0) {
       setDocErrors(docErrs);
@@ -384,7 +411,7 @@ export default function DriverSignup() {
 
       // 2. Con el token, cada archivo pide su URL firmada y se sube a Storage.
       if (payload.upload_token) {
-        const failed = await uploadAllDocuments(payload.upload_token, docFiles, setUploadedCount);
+        const failed = await uploadAllDocuments(payload.upload_token, docFiles, docExpiry, setUploadedCount);
         if (failed.length > 0) {
           setSubmitNote(
             `Your application was received, but ${failed.length} document(s) could not be uploaded: ` +
@@ -894,6 +921,9 @@ export default function DriverSignup() {
                               color={CATEGORY_COLORS[doc.category]}
                               onChange={(f) => { setDocFiles((prev) => ({ ...prev, [doc.key]: f })); setDocErrors((e) => { const n = { ...e }; delete n[doc.key]; return n; }); }}
                               error={docErrors[doc.key]}
+                              expires={doc.expires}
+                              expiry={docExpiry[doc.key]}
+                              onExpiryChange={(v) => { setDocExpiry((prev) => ({ ...prev, [doc.key]: v })); setDocErrors((e) => { const n = { ...e }; delete n[doc.key]; return n; }); }}
                             />
                           ))}
                         </div>
