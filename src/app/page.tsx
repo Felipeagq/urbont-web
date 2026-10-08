@@ -1740,6 +1740,7 @@ export default function Home() {
                   className="hover:text-gray-700 transition-colors font-medium"
                 >{item}</a>
               ))}
+              <a href="/pqrs" className="hover:text-gray-700 transition-colors font-medium">PQRS</a>
             </div>
           </div>
         </div>
